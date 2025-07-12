@@ -134,7 +134,7 @@ impl AstGrepTools {
     }
 
     pub fn list_resources(&self) -> Vec<Resource> {
-        vec![
+        let mut resources = vec![
             Resource::new(
                 RawResource {
                     uri: "ast-grep://binary-path".to_string(),
@@ -185,7 +185,14 @@ impl AstGrepTools {
                 },
                 None,
             ),
-        ]
+        ];
+
+        // Add catalog examples from the generated JSON
+        if let Ok(catalog_resources) = self.load_catalog_resources() {
+            resources.extend(catalog_resources);
+        }
+
+        resources
     }
 
     pub fn read_resource(&self, uri: &str) -> Result<String> {
@@ -195,7 +202,14 @@ impl AstGrepTools {
             "ast-grep://rule-examples" => self.get_rule_examples(),
             "ast-grep://relational-patterns" => self.get_relational_patterns(),
             "ast-grep://node-kinds" => self.get_node_kinds(),
-            _ => Err(anyhow!("Unknown resource: {}", uri)),
+            _ => {
+                // Check if it's a catalog resource
+                if uri.starts_with("ast-grep://catalog/") {
+                    self.get_catalog_example(uri)
+                } else {
+                    Err(anyhow!("Unknown resource: {}", uri))
+                }
+            }
         }
     }
 
@@ -569,5 +583,71 @@ Use this rule with the execute_rule tool:
             _ => return Err(anyhow!("Unsupported transformation '{}' for language '{}'", what, language))
         };
         Ok((target.to_string(), fix.to_string()))
+    }
+
+    // Catalog-related methods
+    fn load_catalog_resources(&self) -> Result<Vec<Resource>> {
+        let catalog_path = std::env::var("OUT_DIR")
+            .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
+            .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
+            .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
+        
+        let catalog_content = std::fs::read_to_string(&catalog_path)
+            .map_err(|_| anyhow!("Failed to read catalog.json"))?;
+        
+        let catalog: Value = serde_json::from_str(&catalog_content)?;
+        let mut resources = Vec::new();
+
+        if let Some(examples) = catalog["examples"].as_array() {
+            for (index, example) in examples.iter().enumerate() {
+                if let Some(content) = example["content"].as_str() {
+                    let default_id = format!("example-{}", index);
+                    let id = example["id"].as_str().unwrap_or(&default_id);
+                    let language = example["language"].as_str().unwrap_or("unknown");
+                    let message = example["message"].as_str().unwrap_or("No description");
+                    let source_file = example["source_file"].as_str().unwrap_or("unknown");
+                    
+                    resources.push(Resource::new(
+                        RawResource {
+                            uri: format!("ast-grep://catalog/{}", id),
+                            name: format!("Catalog Rule: {}", id),
+                            description: Some(format!("{} (Language: {}, Source: {})", message, language, source_file)),
+                            mime_type: Some("text/yaml".to_string()),
+                            size: Some(content.len() as u32),
+                        },
+                        None,
+                    ));
+                }
+            }
+        }
+
+        Ok(resources)
+    }
+
+    fn get_catalog_example(&self, uri: &str) -> Result<String> {
+        let catalog_path = std::env::var("OUT_DIR")
+            .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
+            .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
+            .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
+        
+        let catalog_content = std::fs::read_to_string(&catalog_path)
+            .map_err(|_| anyhow!("Failed to read catalog.json"))?;
+        
+        let catalog: Value = serde_json::from_str(&catalog_content)?;
+        let rule_id = uri.strip_prefix("ast-grep://catalog/").unwrap_or("");
+
+        if let Some(examples) = catalog["examples"].as_array() {
+            for (index, example) in examples.iter().enumerate() {
+                let default_id = format!("example-{}", index);
+                let id = example["id"].as_str().unwrap_or(&default_id);
+                if id == rule_id {
+                    if let Some(content) = example["content"].as_str() {
+                        return Ok(content.to_string());
+                    }
+                }
+            }
+        }
+
+        Err(anyhow!("Catalog example not found: {}", rule_id))
     }
 }
