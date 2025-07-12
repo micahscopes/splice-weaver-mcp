@@ -31,14 +31,62 @@ An MCP (Model Context Protocol) server that provides ast-grep functionality to l
 
 ## Installation
 
+### Simple Installation (Recommended)
+
+Once published to crates.io:
+```bash
+cargo install mcp-ast-grep
+```
+
+Or install directly from Git:
+```bash
+cargo install --git https://github.com/your-org/mcp-ast-grep
+```
+
+### Development Installation
+
+For development and testing:
+```bash
+./dev-install.sh
+```
+
+This will build the project and create a symlink in `~/.cargo/bin` for easy testing.
+
+### Manual Build
+
 ```bash
 cargo build --release
 ```
 
 ## Usage
 
+### As MCP Server
+
+Add to your MCP client configuration:
+```json
+{
+  "mcp": {
+    "servers": {
+      "ast-grep": {
+        "command": "mcp-ast-grep",
+        "args": []
+      }
+    }
+  }
+}
+```
+
+### Manual Testing
+
 ```bash
+# If installed via cargo install
+mcp-ast-grep
+
+# If built manually
 ./target/release/mcp-ast-grep
+
+# Test installation
+./test-mcp.sh
 ```
 
 ### Binary Management
