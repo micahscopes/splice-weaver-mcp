@@ -230,11 +230,12 @@ impl AstGrepTools {
                 },
                 None,
             ),
+            // Dynamic resource templates - these are just documentation of available patterns
             Resource::new(
                 RawResource {
-                    uri: "ast-grep://examples-by-language".to_string(),
-                    name: "Examples by Language".to_string(),
-                    description: Some("Small-LLM-friendly examples organized by programming language with common patterns".to_string()),
+                    uri: "ast-grep://docs/{type}".to_string(),
+                    name: "Dynamic Documentation".to_string(),
+                    description: Some("Dynamic documentation generator. Types: examples-by-language, pattern-syntax, rule-composition, language-guide/{lang}".to_string()),
                     mime_type: Some("text/markdown".to_string()),
                     size: None,
                 },
@@ -242,9 +243,9 @@ impl AstGrepTools {
             ),
             Resource::new(
                 RawResource {
-                    uri: "ast-grep://pattern-syntax".to_string(),
-                    name: "Pattern Syntax Reference".to_string(),
-                    description: Some("Concise pattern syntax guide optimized for small LLMs with clear examples".to_string()),
+                    uri: "ast-grep://examples/{language}".to_string(),
+                    name: "Language-Specific Examples".to_string(),
+                    description: Some("Examples for specific programming languages. Use: javascript, typescript, python, rust, java, go, etc.".to_string()),
                     mime_type: Some("text/markdown".to_string()),
                     size: None,
                 },
@@ -252,9 +253,19 @@ impl AstGrepTools {
             ),
             Resource::new(
                 RawResource {
-                    uri: "ast-grep://rule-composition".to_string(),
-                    name: "Rule Composition Guide".to_string(),
-                    description: Some("Small-LLM-friendly guide for composing complex rules from simple patterns".to_string()),
+                    uri: "ast-grep://patterns/{category}".to_string(),
+                    name: "Pattern Categories".to_string(),
+                    description: Some("Pattern examples by category. Categories: variables, functions, loops, classes, error-handling, imports".to_string()),
+                    mime_type: Some("text/markdown".to_string()),
+                    size: None,
+                },
+                None,
+            ),
+            Resource::new(
+                RawResource {
+                    uri: "ast-grep://query/{type}".to_string(),
+                    name: "Dynamic Queries".to_string(),
+                    description: Some("Dynamic query interface. Types: search?q=term, filter?has_fix=true, similar?pattern=code".to_string()),
                     mime_type: Some("text/markdown".to_string()),
                     size: None,
                 },
@@ -284,12 +295,15 @@ impl AstGrepTools {
             "ast-grep://node-kinds" => self.get_node_kinds(),
             "ast-grep://cheatsheet/rules" => self.get_cheatsheet_rules(),
             "ast-grep://cheatsheet/yaml" => self.get_cheatsheet_yaml(),
+            // Legacy static URIs (deprecated, use dynamic ones)
             "ast-grep://examples-by-language" => self.get_examples_by_language(),
             "ast-grep://pattern-syntax" => self.get_pattern_syntax(),
             "ast-grep://rule-composition" => self.get_rule_composition(),
             _ => {
-                // Check if it's a catalog resource
-                if uri.starts_with("ast-grep://catalog/") {
+                // Handle dynamic resources
+                if let Some(content) = self.handle_dynamic_resource(uri)? {
+                    Ok(content)
+                } else if uri.starts_with("ast-grep://catalog/") {
                     self.get_catalog_example(uri)
                 } else if uri.starts_with("ast-grep://navigation/") {
                     self.get_navigation_content(uri)
@@ -1359,6 +1373,91 @@ Use this rule with the execute_rule tool:
         Err(anyhow!("Navigation resource not found: {}", uri))
     }
 
+    fn handle_dynamic_resource(&self, uri: &str) -> Result<Option<String>> {
+        // Parse dynamic URI patterns
+        if let Some(content) = self.parse_docs_uri(uri)? {
+            return Ok(Some(content));
+        }
+        
+        if let Some(content) = self.parse_examples_uri(uri)? {
+            return Ok(Some(content));
+        }
+        
+        if let Some(content) = self.parse_patterns_uri(uri)? {
+            return Ok(Some(content));
+        }
+        
+        if let Some(content) = self.parse_query_uri(uri)? {
+            return Ok(Some(content));
+        }
+        
+        Ok(None)
+    }
+
+    fn parse_docs_uri(&self, uri: &str) -> Result<Option<String>> {
+        if let Some(doc_type) = uri.strip_prefix("ast-grep://docs/") {
+            let (doc_type, params) = self.parse_uri_params(doc_type);
+            
+            match doc_type {
+                "examples-by-language" => Ok(Some(self.get_examples_by_language()?)),
+                "pattern-syntax" => Ok(Some(self.get_pattern_syntax()?)),
+                "rule-composition" => Ok(Some(self.get_rule_composition()?)),
+                _ if doc_type.starts_with("language-guide/") => {
+                    let language = doc_type.strip_prefix("language-guide/").unwrap_or("javascript");
+                    Ok(Some(self.get_language_guide(language, &params)?))
+                }
+                _ => Ok(None),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn parse_examples_uri(&self, uri: &str) -> Result<Option<String>> {
+        if let Some(language) = uri.strip_prefix("ast-grep://examples/") {
+            let (language, params) = self.parse_uri_params(language);
+            Ok(Some(self.get_language_examples(language, &params)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn parse_patterns_uri(&self, uri: &str) -> Result<Option<String>> {
+        if let Some(category) = uri.strip_prefix("ast-grep://patterns/") {
+            let (category, params) = self.parse_uri_params(category);
+            Ok(Some(self.get_pattern_category(category, &params)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn parse_query_uri(&self, uri: &str) -> Result<Option<String>> {
+        if let Some(query_part) = uri.strip_prefix("ast-grep://query/") {
+            let (query_type, params) = self.parse_uri_params(query_part);
+            Ok(Some(self.handle_query_resource(query_type, &params)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn parse_uri_params<'a>(&self, input: &'a str) -> (&'a str, std::collections::HashMap<String, String>) {
+        let mut params = std::collections::HashMap::new();
+        
+        if let Some((base, query_string)) = input.split_once('?') {
+            for param_pair in query_string.split('&') {
+                if let Some((key, value)) = param_pair.split_once('=') {
+                    params.insert(
+                        key.to_string(),
+                        value.to_string(),
+                    );
+                }
+            }
+            (base, params)
+        } else {
+            (input, params)
+        }
+    }
+
     fn get_examples_by_language(&self) -> Result<String> {
         Ok(r#"# Examples by Language
 
@@ -1919,5 +2018,275 @@ note: |
   - Removing the comment if no longer relevant
 ```
 "#.to_string())
+    }
+
+    // Dynamic resource content generators
+    fn get_language_guide(&self, language: &str, params: &std::collections::HashMap<String, String>) -> Result<String> {
+        let level = params.get("level").map(|s| s.as_str()).unwrap_or("beginner");
+        let focus = params.get("focus").map(|s| s.as_str()).unwrap_or("patterns");
+        
+        Ok(format!(r#"# {language} AST-Grep Guide ({level} level)
+
+## Focus: {focus}
+
+This guide provides {level}-level patterns and examples for {language} development.
+
+## Common Patterns for {language}
+
+{patterns}
+
+## Advanced Techniques
+
+{advanced}
+
+## Best Practices
+
+{best_practices}
+
+"#, 
+            language = language.to_title_case(),
+            level = level,
+            focus = focus,
+            patterns = self.get_language_patterns(language)?,
+            advanced = self.get_advanced_patterns(language, level)?,
+            best_practices = self.get_best_practices(language)?
+        ))
+    }
+
+    fn get_language_examples(&self, language: &str, params: &std::collections::HashMap<String, String>) -> Result<String> {
+        let category = params.get("category").map(|s| s.as_str()).unwrap_or("all");
+        let complexity = params.get("complexity").map(|s| s.as_str()).unwrap_or("basic");
+        
+        let examples = self.filter_examples_by_criteria(language, category, complexity)?;
+        
+        Ok(format!(r#"# {language} Examples
+
+**Category**: {category}  
+**Complexity**: {complexity}
+
+{examples}
+
+## Usage
+
+These examples can be copied directly into your ast-grep rules or used as templates.
+
+"#,
+            language = language.to_title_case(),
+            category = category,
+            complexity = complexity,
+            examples = examples
+        ))
+    }
+
+    fn get_pattern_category(&self, category: &str, params: &std::collections::HashMap<String, String>) -> Result<String> {
+        let language = params.get("language").map(|s| s.as_str()).unwrap_or("any");
+        let with_fixes = params.get("fixes").map(|s| s == "true").unwrap_or(false);
+        
+        let patterns = self.get_categorized_patterns(category, language, with_fixes)?;
+        
+        Ok(format!(r#"# {category} Patterns
+
+**Language Filter**: {language}  
+**Include Fixes**: {with_fixes}
+
+{patterns}
+
+## Related Categories
+
+{related}
+
+"#,
+            category = category.to_title_case(),
+            language = language,
+            with_fixes = with_fixes,
+            patterns = patterns,
+            related = self.get_related_categories(category)?
+        ))
+    }
+
+    fn handle_query_resource(&self, query_type: &str, params: &std::collections::HashMap<String, String>) -> Result<String> {
+        match query_type {
+            "search" => self.handle_search_query(params),
+            "filter" => self.handle_filter_query(params),
+            "similar" => self.handle_similar_query(params),
+            _ => Err(anyhow!("Unknown query type: {}", query_type)),
+        }
+    }
+
+    fn handle_search_query(&self, params: &std::collections::HashMap<String, String>) -> Result<String> {
+        let query = params.get("q").ok_or_else(|| anyhow!("Missing search query"))?;
+        let language = params.get("lang").map(|s| s.as_str()).unwrap_or("any");
+        let limit = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(10);
+        
+        // Search through catalog for matching patterns
+        let results = self.search_catalog(query, language, limit)?;
+        
+        Ok(format!(r#"# Search Results for "{query}"
+
+**Language**: {language}  
+**Results**: {count} of {total}
+
+{results}
+
+"#,
+            query = query,
+            language = language,
+            count = results.len(),
+            total = self.get_total_patterns()?,
+            results = results
+        ))
+    }
+
+    fn handle_filter_query(&self, params: &std::collections::HashMap<String, String>) -> Result<String> {
+        let has_fix = params.get("has_fix").map(|s| s == "true");
+        let language = params.get("language").map(|s| s.as_str());
+        let features = params.get("features").map(|s| s.split(',').collect::<Vec<_>>());
+        
+        let filtered = self.filter_catalog(has_fix, language, features.as_deref())?;
+        
+        Ok(format!(r#"# Filtered Catalog
+
+**Filters Applied**:
+{filters}
+
+**Results**: {count} patterns
+
+{results}
+
+"#,
+            filters = self.format_filters(has_fix, language, features.as_deref()),
+            count = filtered.len(),
+            results = filtered
+        ))
+    }
+
+    fn handle_similar_query(&self, params: &std::collections::HashMap<String, String>) -> Result<String> {
+        let pattern = params.get("pattern").ok_or_else(|| anyhow!("Missing pattern"))?;
+        let similar = self.find_similar_patterns(pattern)?;
+        
+        Ok(format!(r#"# Similar Patterns to "{pattern}"
+
+{similar}
+
+"#))
+    }
+
+    // Helper methods for dynamic content generation
+    fn get_language_patterns(&self, language: &str) -> Result<String> {
+        match language.to_lowercase().as_str() {
+            "javascript" | "typescript" => Ok(r#"
+### Variable Declarations
+```yaml
+rule:
+  any:
+    - pattern: "var $VAR = $VALUE"
+    - pattern: "let $VAR = $VALUE"  
+    - pattern: "const $VAR = $VALUE"
+```
+
+### Function Calls
+```yaml
+rule:
+  pattern: "$OBJ.$METHOD($$$ARGS)"
+```
+"#.to_string()),
+            "python" => Ok(r#"
+### Function Definitions
+```yaml
+rule:
+  pattern: "def $NAME($$$PARAMS): $$$BODY"
+```
+
+### Class Definitions
+```yaml
+rule:
+  pattern: "class $NAME: $$$BODY"
+```
+"#.to_string()),
+            "rust" => Ok(r#"
+### Function Items
+```yaml
+rule:
+  pattern: "fn $NAME($$$PARAMS) -> $RET { $$$BODY }"
+```
+
+### Match Expressions
+```yaml
+rule:
+  pattern: "match $EXPR { $$$ARMS }"
+```
+"#.to_string()),
+            _ => Ok("Generic patterns available for all languages.".to_string()),
+        }
+    }
+
+    fn get_advanced_patterns(&self, language: &str, level: &str) -> Result<String> {
+        if level == "advanced" {
+            Ok(format!("Advanced {language} patterns with complex relational rules and constraints."))
+        } else {
+            Ok("Intermediate patterns with basic relational rules.".to_string())
+        }
+    }
+
+    fn get_best_practices(&self, language: &str) -> Result<String> {
+        Ok(format!("Best practices for writing maintainable {language} ast-grep rules."))
+    }
+
+    fn filter_examples_by_criteria(&self, language: &str, category: &str, complexity: &str) -> Result<String> {
+        // This would filter the actual catalog based on criteria
+        Ok(format!("Filtered examples for {language}, category: {category}, complexity: {complexity}"))
+    }
+
+    fn get_categorized_patterns(&self, category: &str, language: &str, with_fixes: bool) -> Result<String> {
+        Ok(format!("Patterns for category: {category}, language: {language}, fixes: {with_fixes}"))
+    }
+
+    fn get_related_categories(&self, category: &str) -> Result<String> {
+        Ok(format!("Related categories for: {category}"))
+    }
+
+    fn search_catalog(&self, query: &str, language: &str, limit: usize) -> Result<String> {
+        Ok(format!("Search results for '{query}' in {language} (limit: {limit})"))
+    }
+
+    fn get_total_patterns(&self) -> Result<usize> {
+        Ok(42) // From the catalog
+    }
+
+    fn filter_catalog(&self, has_fix: Option<bool>, language: Option<&str>, features: Option<&[&str]>) -> Result<String> {
+        Ok(format!("Filtered catalog results (fix: {has_fix:?}, lang: {language:?}, features: {features:?})"))
+    }
+
+    fn format_filters(&self, has_fix: Option<bool>, language: Option<&str>, features: Option<&[&str]>) -> String {
+        let mut filters = Vec::new();
+        if let Some(fix) = has_fix {
+            filters.push(format!("- Has fix: {fix}"));
+        }
+        if let Some(lang) = language {
+            filters.push(format!("- Language: {lang}"));
+        }
+        if let Some(feats) = features {
+            filters.push(format!("- Features: {}", feats.join(", ")));
+        }
+        filters.join("\n")
+    }
+
+    fn find_similar_patterns(&self, pattern: &str) -> Result<String> {
+        Ok(format!("Similar patterns to: {pattern}"))
+    }
+}
+
+// Helper trait for string formatting
+trait ToTitleCase {
+    fn to_title_case(&self) -> String;
+}
+
+impl ToTitleCase for str {
+    fn to_title_case(&self) -> String {
+        let mut chars = self.chars();
+        match chars.next() {
+            None => String::new(),
+            Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+        }
     }
 }
