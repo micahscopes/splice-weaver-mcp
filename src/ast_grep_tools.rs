@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use rmcp::model::*;
 use rust_embed::RustEmbed;
 use serde_json::Value;
+use serde_yaml;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -170,6 +171,77 @@ impl AstGrepTools {
         Ok(stdout.to_string())
     }
 
+    fn validate_rule_yaml(&self, rule_config: &str) -> Result<()> {
+        // First, validate YAML syntax
+        let parsed: serde_yaml::Value = serde_yaml::from_str(rule_config)
+            .map_err(|e| anyhow!("Invalid YAML syntax: {}\n\nPlease check your YAML formatting. Common issues:\n- Incorrect indentation (use spaces, not tabs)\n- Missing colons after keys\n- Unmatched quotes or brackets\n\nExample of correct format:\n{}", e, self.get_example_rule()))?;
+
+        // Ensure we have a mapping (object), not a scalar or array
+        let rule_map = parsed.as_mapping()
+            .ok_or_else(|| anyhow!("Rule must be a YAML object, not a scalar value or array.\n\nExample of correct format:\n{}", self.get_example_rule()))?;
+
+        // Check for required fields
+        let mut missing_fields = Vec::new();
+
+        if !rule_map.contains_key("id") {
+            missing_fields.push("id");
+        }
+        if !rule_map.contains_key("language") {
+            missing_fields.push("language");
+        }
+        if !rule_map.contains_key("rule") {
+            missing_fields.push("rule");
+        }
+
+        if !missing_fields.is_empty() {
+            return Err(anyhow!(
+                "Missing required fields: {}\n\nRequired fields for ast-grep rules:\n- id: unique identifier for the rule\n- language: programming language (e.g., 'javascript', 'rust', 'python')\n- rule: the search/replace pattern definition\n\nExample of correct format:\n{}",
+                missing_fields.join(", "),
+                self.get_example_rule()
+            ));
+        }
+
+        // Validate language field
+        if let Some(language) = rule_map.get("language").and_then(|v| v.as_str()) {
+            self.validate_language(language)?;
+        } else {
+            return Err(anyhow!("Language field must be a string.\n\nSupported languages: javascript, typescript, rust, python, java, go, cpp, c\n\nExample of correct format:\n{}", self.get_example_rule()));
+        }
+
+        // Validate rule structure
+        if let Some(rule) = rule_map.get("rule") {
+            if rule.as_mapping().is_none() {
+                return Err(anyhow!("Rule field must be an object containing pattern or other rule definitions.\n\nExample of correct format:\n{}", self.get_example_rule()));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_language(&self, language: &str) -> Result<()> {
+        match language {
+            "javascript" | "typescript" | "rust" | "python" | "java" | "go" | "cpp" | "c++" | "c" => Ok(()),
+            _ => Err(anyhow!(
+                "Unsupported language: '{}'\n\nSupported languages: javascript, typescript, rust, python, java, go, cpp, c\n\nExample of correct format:\n{}",
+                language,
+                self.get_example_rule()
+            ))
+        }
+    }
+
+    fn get_example_rule(&self) -> &'static str {
+        r#"id: example-rule
+language: javascript
+rule:
+  pattern: function $NAME($$$PARAMS) { $$$BODY }
+  # Optional: add constraints, transformations, etc.
+  # constraints:
+  #   - pattern: $NAME
+  #     regex: "^[a-z]"
+  # transform:
+  #   $NAME: "new_$NAME""#
+    }
+
     async fn execute_rule(&self, args: Value) -> Result<String> {
         let rule_config = args["rule_config"]
             .as_str()
@@ -177,6 +249,9 @@ impl AstGrepTools {
         let target = args["target"].as_str().ok_or(anyhow!("Missing target"))?;
         let operation = args["operation"].as_str().unwrap_or("search");
         let dry_run = args["dry_run"].as_bool().unwrap_or(true);
+
+        // Validate the YAML rule configuration before processing
+        self.validate_rule_yaml(rule_config)?;
 
         // Resolve the target path using MCP roots
         let resolved_target = self.resolve_path(target)?;
