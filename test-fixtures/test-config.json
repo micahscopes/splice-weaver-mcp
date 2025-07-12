@@ -1,0 +1,151 @@
+{
+  "test_cases": [
+    {
+      "name": "javascript_basic_functions",
+      "language": "javascript",
+      "code": "function greet(name) {\n  return \"Hello, \" + name;\n}\n\nconst add = (a, b) => a + b;",
+      "pattern": "function $NAME($PARAMS) { $BODY }",
+      "expected_matches": 1,
+      "expected_vars": {"NAME": "greet"},
+      "description": "Detect JavaScript function declarations"
+    },
+    {
+      "name": "javascript_console_log",
+      "language": "javascript",
+      "code": "console.log(\"Debug message\");\nconsole.error(\"Error message\");\nconsole.log(variable);",
+      "pattern": "console.log($ARG)",
+      "expected_matches": 2,
+      "description": "Detect console.log statements"
+    },
+    {
+      "name": "javascript_arrow_functions",
+      "language": "javascript",
+      "code": "const add = (a, b) => a + b;\nconst multiply = (x, y) => {\n  return x * y;\n};",
+      "pattern": "const $NAME = ($PARAMS) => $BODY",
+      "expected_matches": 2,
+      "description": "Detect arrow function assignments"
+    },
+    {
+      "name": "javascript_var_to_const",
+      "language": "javascript",
+      "code": "var oldVar = 'value';",
+      "pattern": "var $NAME = $VALUE",
+      "expected_matches": 1,
+      "replacement": "const $NAME = $VALUE",
+      "expected_replacement": "const oldVar = 'value';",
+      "description": "Replace var with const"
+    },
+    {
+      "name": "typescript_interface_detection",
+      "language": "typescript",
+      "code": "interface User {\n  id: number;\n  name: string;\n}\n\ninterface Admin extends User {\n  permissions: string[];\n}",
+      "pattern": "interface $NAME { $BODY }",
+      "expected_matches": 1,
+      "description": "Detect TypeScript interface declarations"
+    },
+    {
+      "name": "typescript_class_methods",
+      "language": "typescript",
+      "code": "class Calculator {\n  add(a: number, b: number): number {\n    return a + b;\n  }\n\n  private multiply(x: number, y: number): number {\n    return x * y;\n  }\n}",
+      "pattern": "$VISIBILITY $NAME($PARAMS): $RETURN { $BODY }",
+      "expected_matches": 1,
+      "description": "Detect TypeScript class methods with visibility"
+    },
+    {
+      "name": "rust_function_with_return",
+      "language": "rust",
+      "code": "fn greet(name: &str) -> String {\n    format!(\"Hello, {}!\", name)\n}\n\nfn add(a: i32, b: i32) -> i32 {\n    a + b\n}",
+      "pattern": "fn $NAME($PARAMS) -> $RETURN { $BODY }",
+      "expected_matches": 2,
+      "description": "Detect Rust function definitions with return types"
+    },
+    {
+      "name": "rust_struct_definition",
+      "language": "rust",
+      "code": "struct Point {\n    x: i32,\n    y: i32,\n}\n\npub struct Circle {\n    radius: f64,\n}",
+      "pattern": "struct $NAME { $FIELDS }",
+      "expected_matches": 1,
+      "description": "Detect Rust struct definitions"
+    },
+    {
+      "name": "rust_match_expressions",
+      "language": "rust",
+      "code": "match value {\n    0 => \"zero\",\n    1 => \"one\",\n    _ => \"other\",\n}",
+      "pattern": "match $EXPR { $ARMS }",
+      "expected_matches": 1,
+      "description": "Detect Rust match expressions"
+    },
+    {
+      "name": "python_function_definitions",
+      "language": "python",
+      "code": "def greet(name):\n    return f\"Hello, {name}\"\n\ndef add(a, b):\n    return a + b\n\nclass Calculator:\n    def multiply(self, x, y):\n        return x * y",
+      "pattern": "def $NAME($PARAMS):",
+      "expected_matches": 3,
+      "description": "Detect Python function definitions"
+    },
+    {
+      "name": "python_class_definitions",
+      "language": "python",
+      "code": "class Animal:\n    def __init__(self, name):\n        self.name = name\n\nclass Dog(Animal):\n    def bark(self):\n        return \"Woof!\"",
+      "pattern": "class $NAME:",
+      "expected_matches": 1,
+      "description": "Detect Python class definitions without inheritance"
+    },
+    {
+      "name": "python_import_statements",
+      "language": "python",
+      "code": "import os\nfrom datetime import datetime\nfrom collections import defaultdict as dd\nimport sys",
+      "pattern": "import $MODULE",
+      "expected_matches": 2,
+      "description": "Detect Python import statements"
+    },
+    {
+      "name": "go_function_definitions",
+      "language": "go",
+      "code": "func greet(name string) string {\n    return fmt.Sprintf(\"Hello, %s!\", name)\n}\n\nfunc add(a, b int) int {\n    return a + b\n}",
+      "pattern": "func $NAME($PARAMS) $RETURN { $BODY }",
+      "expected_matches": 2,
+      "description": "Detect Go function definitions"
+    },
+    {
+      "name": "go_method_definitions",
+      "language": "go",
+      "code": "func (p Person) greet() string {\n    return fmt.Sprintf(\"Hello, %s\", p.name)\n}\n\nfunc (c *Calculator) add(a, b int) int {\n    return a + b\n}",
+      "pattern": "func ($RECEIVER) $NAME($PARAMS) $RETURN { $BODY }",
+      "expected_matches": 2,
+      "description": "Detect Go method definitions with receivers"
+    },
+    {
+      "name": "go_struct_definitions",
+      "language": "go",
+      "code": "type Person struct {\n    name string\n    age  int\n}\n\ntype Calculator struct {\n    value int\n}",
+      "pattern": "type $NAME struct { $FIELDS }",
+      "expected_matches": 2,
+      "description": "Detect Go struct definitions"
+    },
+    {
+      "name": "java_method_definitions",
+      "language": "java",
+      "code": "public class Calculator {\n    public int add(int a, int b) {\n        return a + b;\n    }\n\n    private String greet(String name) {\n        return \"Hello, \" + name;\n    }\n}",
+      "pattern": "public $RETURN $NAME($PARAMS) { $BODY }",
+      "expected_matches": 1,
+      "description": "Detect Java public method definitions"
+    },
+    {
+      "name": "java_class_definitions",
+      "language": "java",
+      "code": "public class Calculator {\n    // methods\n}\n\npublic class Advanced extends Calculator {\n    // methods\n}",
+      "pattern": "public class $NAME { $BODY }",
+      "expected_matches": 1,
+      "description": "Detect Java class definitions without inheritance"
+    },
+    {
+      "name": "java_static_methods",
+      "language": "java",
+      "code": "public class Utils {\n    public static String format(String text) {\n        return text.toUpperCase();\n    }\n\n    public static int calculate(int x, int y) {\n        return x + y;\n    }\n}",
+      "pattern": "public static $RETURN $NAME($PARAMS) { $BODY }",
+      "expected_matches": 2,
+      "description": "Detect Java static method definitions"
+    }
+  ]
+}

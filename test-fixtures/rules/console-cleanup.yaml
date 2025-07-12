@@ -1,0 +1,7 @@
+id: console-cleanup
+language: javascript
+message: "Remove console.log statements for production"
+severity: warning
+rule:
+  pattern: "console.log($ARGS)"
+fix: ""

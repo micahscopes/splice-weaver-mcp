@@ -1,0 +1,13 @@
+id: javascript-modernization
+language: javascript
+message: "Modernize JavaScript code to ES6+ standards"
+severity: info
+rule:
+  any:
+    - pattern: "var $NAME = $VALUE"
+    - pattern: "function $NAME($PARAMS) { $BODY }"
+    - pattern: "$OBJ.hasOwnProperty($PROP)"
+fix: |
+  # Multiple fixes would be applied based on the matched pattern
+  # This is a simplified example - in practice, you'd have separate rules
+  const $NAME = $VALUE

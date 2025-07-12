@@ -1,0 +1,7 @@
+id: rust-error-handling
+language: rust
+message: "Prefer ? operator over unwrap() for error handling"
+severity: warning
+rule:
+  pattern: "$EXPR.unwrap()"
+fix: "$EXPR?"
