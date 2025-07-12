@@ -6,6 +6,7 @@ use tracing::{error, info};
 mod ast_grep_tools;
 mod binary_manager;
 pub mod evaluation_client;
+mod simple_search;
 use ast_grep_tools::AstGrepTools;
 use binary_manager::BinaryManager;
 
