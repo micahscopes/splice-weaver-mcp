@@ -10,6 +10,12 @@ use tracing::{info, error};
 mod ast_grep_tools;
 use ast_grep_tools::AstGrepTools;
 
+mod resources;
+use resources::ResourceProvider;
+
+mod prompts;
+use prompts::PromptManager;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
@@ -29,12 +35,16 @@ async fn main() -> Result<()> {
 #[derive(Clone)]
 pub struct AstGrepServer {
     tools: Arc<AstGrepTools>,
+    resources: Arc<ResourceProvider>,
+    prompts: Arc<PromptManager>,
 }
 
 impl AstGrepServer {
     pub fn new() -> Self {
         let tools = Arc::new(AstGrepTools::new());
-        Self { tools }
+        let resources = Arc::new(ResourceProvider::new());
+        let prompts = Arc::new(PromptManager::new());
+        Self { tools, resources, prompts }
     }
 }
 
@@ -44,12 +54,14 @@ impl ServerHandler for AstGrepServer {
             protocol_version: ProtocolVersion::V_2024_11_05,
             capabilities: ServerCapabilities::builder()
                 .enable_tools()
+                .enable_resources()
+                .enable_prompts()
                 .build(),
             server_info: Implementation {
                 name: "mcp-ast-grep".to_string(),
                 version: "0.1.0".to_string(),
             },
-            instructions: None,
+            instructions: Some("Enhanced ast-grep server with Resources and Prompts for better small LLM support".to_string()),
         }
     }
 
@@ -147,6 +159,53 @@ impl ServerHandler for AstGrepServer {
                 error!("Tool execution failed: {}", e);
                 Err(rmcp::Error::invalid_params(format!("Tool execution failed: {}", e), None))
             }
+        }
+    }
+
+    async fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParam>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, rmcp::Error> {
+        let resources = self.resources.list_resources();
+        Ok(ListResourcesResult::with_all_items(resources))
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParam,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResult, rmcp::Error> {
+        match self.resources.get_resource(&request.uri) {
+            Ok(content) => Ok(ReadResourceResult {
+                contents: vec![ResourceContents::text(content.to_string(), request.uri.clone())]
+            }),
+            Err(e) => Err(rmcp::Error::invalid_params(format!("Resource not found: {}", e), None)),
+        }
+    }
+
+    async fn list_prompts(
+        &self,
+        _request: Option<PaginatedRequestParam>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListPromptsResult, rmcp::Error> {
+        let prompts = self.prompts.list_prompts();
+        Ok(ListPromptsResult::with_all_items(prompts))
+    }
+
+    async fn get_prompt(
+        &self,
+        request: GetPromptRequestParam,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResult, rmcp::Error> {
+        let arguments = request.arguments.unwrap_or_default();
+        let arguments_hashmap: std::collections::HashMap<String, serde_json::Value> = arguments.into_iter().collect();
+        match self.prompts.get_prompt(&request.name, arguments_hashmap) {
+            Ok(content) => Ok(GetPromptResult {
+                description: None,
+                messages: vec![PromptMessage::new_text(PromptMessageRole::User, content)]
+            }),
+            Err(e) => Err(rmcp::Error::invalid_params(format!("Prompt not found: {}", e), None)),
         }
     }
 }

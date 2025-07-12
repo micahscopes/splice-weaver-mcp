@@ -1,0 +1,59 @@
+{
+  "server": {
+    "name": "mcp-ast-grep",
+    "version": "0.1.0",
+    "description": "Enhanced ast-grep MCP server with Resources and Prompts for better small LLM support"
+  },
+  "capabilities": {
+    "tools": {
+      "description": "Core ast-grep functionality",
+      "tools": [
+        "ast_grep_search",
+        "ast_grep_replace", 
+        "ast_grep_scan"
+      ]
+    },
+    "resources": {
+      "description": "Pattern libraries and language references",
+      "categories": [
+        "patterns://javascript/refactoring/extract-function",
+        "patterns://javascript/security/common-vulnerabilities",
+        "patterns://python/refactoring/extract-function",
+        "patterns://rust/refactoring/extract-function",
+        "lang://javascript/ast-nodes",
+        "lang://python/ast-nodes",
+        "lang://rust/ast-nodes",
+        "rules://security/detect-hardcoded-secrets",
+        "rules://performance/unused-variables"
+      ]
+    },
+    "prompts": {
+      "description": "Guided workflows for common tasks",
+      "categories": [
+        "refactor_function",
+        "refactor_variable",
+        "security_scan",
+        "performance_audit",
+        "explain_pattern",
+        "debug_pattern"
+      ]
+    }
+  },
+  "usage": {
+    "installation": "cargo build --release",
+    "running": "./target/release/mcp-ast-grep",
+    "client_setup": "Add to your MCP client configuration"
+  },
+  "benefits_for_small_llms": {
+    "resources": [
+      "Pre-loaded context reduces memory pressure",
+      "Structured pattern libraries improve success rates",
+      "Language references reduce syntax errors"
+    ],
+    "prompts": [
+      "Step-by-step workflows reduce cognitive load",
+      "Guided processes improve reliability",
+      "Educational support for pattern learning"
+    ]
+  }
+}
