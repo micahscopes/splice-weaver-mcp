@@ -55,27 +55,22 @@ fn extract_catalog_examples() -> Result<Value, Box<dyn std::error::Error>> {
     
     println!("cargo:warning=Found ast-grep website at: {}", website_path.display());
     
-    // Walk through the website directory looking for catalog/rule examples
-    for entry in WalkDir::new(website_path).into_iter().filter_map(|e| e.ok()) {
-        let path = entry.path();
-        
-        // Look for YAML/YML files that might contain rules
-        if let Some(ext) = path.extension() {
-            if ext == "yml" || ext == "yaml" {
-                if let Ok(content) = fs::read_to_string(path) {
-                    if let Ok(extracted) = extract_rule_from_content(&content, path) {
-                        examples.push(extracted);
-                    }
-                }
-            }
-        }
-        
-        // Also look for markdown files with embedded YAML
-        if let Some(ext) = path.extension() {
-            if ext == "md" {
-                if let Ok(content) = fs::read_to_string(path) {
-                    if let Ok(mut extracted) = extract_rules_from_markdown(&content, path) {
-                        examples.append(&mut extracted);
+    // Focus specifically on catalog directory
+    let catalog_path = website_path.join("website/catalog");
+    if catalog_path.exists() {
+        for entry in WalkDir::new(catalog_path).into_iter().filter_map(|e| e.ok()) {
+            let path = entry.path();
+            
+            // Only process markdown files that are actual examples (not index.md or rule-template.md)
+            if let Some(ext) = path.extension() {
+                if ext == "md" {
+                    let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if filename != "index.md" && filename != "rule-template.md" {
+                        if let Ok(content) = fs::read_to_string(path) {
+                            if let Ok(extracted) = extract_catalog_example(&content, path) {
+                                examples.push(extracted);
+                            }
+                        }
                     }
                 }
             }
@@ -90,50 +85,120 @@ fn extract_catalog_examples() -> Result<Value, Box<dyn std::error::Error>> {
     }))
 }
 
-fn extract_rule_from_content(content: &str, file_path: &Path) -> Result<Value, Box<dyn std::error::Error>> {
-    let docs = YamlLoader::load_from_str(content)?;
+fn extract_catalog_example(content: &str, file_path: &Path) -> Result<Value, Box<dyn std::error::Error>> {
+    // Extract ID from filename
+    let id = file_path.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown")
+        .to_string();
     
-    if let Some(doc) = docs.first() {
-        if let Some(rule) = doc.as_hash() {
-            let mut example = json!({
-                "source_file": file_path.to_string_lossy(),
-                "type": "rule",
-                "content": content.trim()
-            });
-            
-            // Extract metadata if available
-            if let Some(id) = rule.get(&Yaml::String("id".to_string())) {
-                example["id"] = json!(id.as_str().unwrap_or("unknown"));
+    // Extract language from path (catalog/language/example.md)
+    let language = file_path.parent()
+        .and_then(|p| p.file_name())
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+    
+    // Extract title from first heading
+    let title_re = Regex::new(r"##\s*([^<\n]+)")?;
+    let title = title_re.captures(content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().trim())
+        .unwrap_or(&id)
+        .to_string();
+    
+    // Check if it has a fix
+    let has_fix = content.contains("<Badge") && content.contains("Has Fix");
+    
+    // Extract playground link
+    let playground_re = Regex::new(r"\[Playground Link\]\((.+?)\)")?;
+    let playground_link = playground_re.captures(content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    // Extract description (look for ### Description section)
+    let desc_re = Regex::new(r"(?s)### Description\s*\n\n(.*?)(?:\n###|\n```|$)")?;
+    let description = desc_re.captures(content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "No description available".to_string());
+    
+    // Extract YAML rule content
+    let yaml_re = Regex::new(r"(?s)```ya?ml\n(.*?)\n```")?;
+    let yaml_content = yaml_re.captures(content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str())
+        .unwrap_or("")
+        .to_string();
+    
+    // Determine type
+    let rule_type = if yaml_content.is_empty() { "Pattern" } else { "YAML" };
+    
+    // Extract features and rules from YAML if available
+    let mut features = Vec::new();
+    let mut rules = Vec::new();
+    
+    if !yaml_content.is_empty() {
+        if let Ok(docs) = YamlLoader::load_from_str(&yaml_content) {
+            if let Some(doc) = docs.first() {
+                if let Some(yaml_obj) = doc.as_hash() {
+                    // Check for advanced features
+                    if yaml_obj.contains_key(&Yaml::String("utils".to_string())) {
+                        features.push("utils".to_string());
+                    }
+                    if yaml_obj.contains_key(&Yaml::String("constraints".to_string())) {
+                        features.push("constraints".to_string());
+                    }
+                    if yaml_obj.contains_key(&Yaml::String("transform".to_string())) {
+                        features.push("transform".to_string());
+                    }
+                    if yaml_obj.contains_key(&Yaml::String("rewriters".to_string())) {
+                        features.push("rewriters".to_string());
+                    }
+                    
+                    // Extract rule types used
+                    if let Some(rule_obj) = yaml_obj.get(&Yaml::String("rule".to_string())) {
+                        extract_rule_types(rule_obj, &mut rules);
+                    }
+                }
             }
-            
-            if let Some(message) = rule.get(&Yaml::String("message".to_string())) {
-                example["message"] = json!(message.as_str().unwrap_or(""));
-            }
-            
-            if let Some(language) = rule.get(&Yaml::String("language".to_string())) {
-                example["language"] = json!(language.as_str().unwrap_or(""));
-            }
-            
-            return Ok(example);
         }
     }
     
-    Err("No valid rule found in content".into())
+    Ok(json!({
+        "id": id,
+        "title": title,
+        "description": description,
+        "language": language,
+        "type": rule_type,
+        "has_fix": has_fix,
+        "playground_link": playground_link,
+        "features": features,
+        "rules": rules,
+        "yaml_content": yaml_content,
+        "source_file": file_path.to_string_lossy(),
+        "content": content
+    }))
 }
 
-fn extract_rules_from_markdown(content: &str, file_path: &Path) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-    let mut examples = Vec::new();
-    
-    // Regex to find YAML code blocks
-    let yaml_block_re = Regex::new(r"```(?:yaml|yml)\n(.*?)\n```")?;
-    
-    for cap in yaml_block_re.captures_iter(content) {
-        if let Some(yaml_content) = cap.get(1) {
-            if let Ok(example) = extract_rule_from_content(yaml_content.as_str(), file_path) {
-                examples.push(example);
+fn extract_rule_types(yaml_value: &Yaml, rules: &mut Vec<String>) {
+    if let Some(hash) = yaml_value.as_hash() {
+        for key in hash.keys() {
+            if let Some(key_str) = key.as_str() {
+                rules.push(key_str.to_string());
+                
+                // Recursively check nested rules
+                if key_str == "any" || key_str == "all" {
+                    if let Some(arr) = hash.get(key).and_then(|v| v.as_vec()) {
+                        for item in arr {
+                            extract_rule_types(item, rules);
+                        }
+                    }
+                }
             }
         }
     }
-    
-    Ok(examples)
 }
