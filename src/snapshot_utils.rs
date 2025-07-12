@@ -1,9 +1,9 @@
+use crate::evaluation_client::ResponseSnapshot;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use crate::evaluation_client::ResponseSnapshot;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SnapshotComparison {
@@ -55,7 +55,7 @@ impl SnapshotManager {
     pub fn load_all_snapshots(&self) -> Result<Vec<ResponseSnapshot>> {
         let mut snapshots = Vec::new();
         let snapshots_path = Path::new(&self.snapshots_dir);
-        
+
         if !snapshots_path.exists() {
             return Ok(snapshots);
         }
@@ -63,15 +63,18 @@ impl SnapshotManager {
         for entry in fs::read_dir(snapshots_path)? {
             let entry = entry?;
             let path = entry.path();
-            
-            if path.extension().map_or(false, |ext| ext == "yaml" || ext == "yml") {
+
+            if path
+                .extension()
+                .map_or(false, |ext| ext == "yaml" || ext == "yml")
+            {
                 match self.load_snapshot(&path) {
                     Ok(snapshot) => snapshots.push(snapshot),
                     Err(e) => eprintln!("Failed to load snapshot {:?}: {}", path, e),
                 }
             }
         }
-        
+
         Ok(snapshots)
     }
 
@@ -79,15 +82,18 @@ impl SnapshotManager {
     pub fn load_snapshot(&self, path: &Path) -> Result<ResponseSnapshot> {
         let content = fs::read_to_string(path)
             .context(format!("Failed to read snapshot file: {:?}", path))?;
-        
-        serde_yaml::from_str(&content)
-            .context(format!("Failed to parse snapshot YAML: {:?}", path))
+
+        serde_yaml::from_str(&content).context(format!("Failed to parse snapshot YAML: {:?}", path))
     }
 
     /// Compare two snapshots and identify differences
-    pub fn compare_snapshots(&self, previous: &ResponseSnapshot, current: &ResponseSnapshot) -> SnapshotComparison {
+    pub fn compare_snapshots(
+        &self,
+        previous: &ResponseSnapshot,
+        current: &ResponseSnapshot,
+    ) -> SnapshotComparison {
         let mut differences = Vec::new();
-        
+
         // Compare response content
         if previous.evaluation_result.response != current.evaluation_result.response {
             differences.push(SnapshotDifference {
@@ -109,8 +115,11 @@ impl SnapshotManager {
         }
 
         // Compare duration (with tolerance)
-        let duration_diff = (previous.evaluation_result.duration_ms as i64 - current.evaluation_result.duration_ms as i64).abs();
-        if duration_diff > 1000 { // More than 1 second difference
+        let duration_diff = (previous.evaluation_result.duration_ms as i64
+            - current.evaluation_result.duration_ms as i64)
+            .abs();
+        if duration_diff > 1000 {
+            // More than 1 second difference
             differences.push(SnapshotDifference {
                 field: "duration_ms".to_string(),
                 previous_value: previous.evaluation_result.duration_ms.to_string(),
@@ -149,13 +158,18 @@ impl SnapshotManager {
     }
 
     /// Calculate similarity score between two snapshots
-    fn calculate_similarity_score(&self, _previous: &ResponseSnapshot, _current: &ResponseSnapshot, differences: &[SnapshotDifference]) -> f64 {
+    fn calculate_similarity_score(
+        &self,
+        _previous: &ResponseSnapshot,
+        _current: &ResponseSnapshot,
+        differences: &[SnapshotDifference],
+    ) -> f64 {
         let base_score = 1.0;
         let penalty_per_difference = 0.1;
-        
+
         // Additional penalties for critical differences
         let mut total_penalty = differences.len() as f64 * penalty_per_difference;
-        
+
         for diff in differences {
             match diff.diff_type {
                 DifferenceType::ResponseContent => {
@@ -180,7 +194,7 @@ impl SnapshotManager {
     /// Generate a summary report of all snapshots
     pub fn generate_summary(&self) -> Result<SnapshotSummary> {
         let snapshots = self.load_all_snapshots()?;
-        
+
         let total_snapshots = snapshots.len();
         let mut test_coverage = HashMap::new();
         let mut model_coverage = HashMap::new();
@@ -190,19 +204,23 @@ impl SnapshotManager {
 
         for snapshot in &snapshots {
             // Test coverage
-            *test_coverage.entry(snapshot.metadata.test_name.clone()).or_insert(0) += 1;
-            
+            *test_coverage
+                .entry(snapshot.metadata.test_name.clone())
+                .or_insert(0) += 1;
+
             // Model coverage
-            *model_coverage.entry(snapshot.metadata.model_name.clone()).or_insert(0) += 1;
-            
+            *model_coverage
+                .entry(snapshot.metadata.model_name.clone())
+                .or_insert(0) += 1;
+
             // Duration stats
             total_duration += snapshot.evaluation_result.duration_ms;
-            
+
             // Success rate
             if snapshot.evaluation_result.success {
                 success_count += 1;
             }
-            
+
             // Tool usage
             for tool_call in &snapshot.evaluation_result.tool_calls {
                 *tool_usage.entry(tool_call.tool_name.clone()).or_insert(0) += 1;
@@ -239,16 +257,18 @@ impl SnapshotManager {
     pub fn find_regressions(&self, baseline_days: u64) -> Result<Vec<SnapshotComparison>> {
         let snapshots = self.load_all_snapshots()?;
         let mut regressions = Vec::new();
-        
+
         let baseline_timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_secs() - (baseline_days * 24 * 60 * 60);
+            .as_secs()
+            - (baseline_days * 24 * 60 * 60);
 
         // Group snapshots by test name
         let mut test_groups: HashMap<String, Vec<&ResponseSnapshot>> = HashMap::new();
         for snapshot in &snapshots {
-            test_groups.entry(snapshot.metadata.test_name.clone())
+            test_groups
+                .entry(snapshot.metadata.test_name.clone())
                 .or_insert_with(Vec::new)
                 .push(snapshot);
         }
@@ -256,18 +276,19 @@ impl SnapshotManager {
         for (_test_name, mut test_snapshots) in test_groups {
             // Sort by timestamp
             test_snapshots.sort_by_key(|s| s.metadata.timestamp);
-            
+
             // Find baseline (oldest snapshot within baseline period)
-            let baseline = test_snapshots.iter()
+            let baseline = test_snapshots
+                .iter()
                 .find(|s| s.metadata.timestamp >= baseline_timestamp);
-            
+
             // Find most recent snapshot
             let recent = test_snapshots.last();
-            
+
             if let (Some(baseline), Some(recent)) = (baseline, recent) {
                 if baseline.metadata.timestamp != recent.metadata.timestamp {
                     let comparison = self.compare_snapshots(baseline, recent);
-                    
+
                     // Consider it a regression if similarity is below threshold
                     if comparison.similarity_score < 0.7 {
                         regressions.push(comparison);
@@ -275,14 +296,14 @@ impl SnapshotManager {
                 }
             }
         }
-        
+
         Ok(regressions)
     }
 
     /// Export snapshots in different formats for analysis
     pub fn export_snapshots(&self, format: ExportFormat, output_path: &str) -> Result<()> {
         let snapshots = self.load_all_snapshots()?;
-        
+
         match format {
             ExportFormat::Json => {
                 let json = serde_json::to_string_pretty(&snapshots)?;
@@ -297,14 +318,14 @@ impl SnapshotManager {
                 fs::write(output_path, yaml)?;
             }
         }
-        
+
         Ok(())
     }
 
     fn export_to_csv(&self, snapshots: &[ResponseSnapshot], output_path: &str) -> Result<()> {
         let mut csv_content = String::new();
         csv_content.push_str("test_name,model_name,timestamp,prompt_hash,duration_ms,tool_calls_made,success,word_count,contains_error,sentiment\n");
-        
+
         for snapshot in snapshots {
             csv_content.push_str(&format!(
                 "{},{},{},{},{},{},{},{},{},{:?}\n",
@@ -320,7 +341,7 @@ impl SnapshotManager {
                 snapshot.response_analysis.sentiment
             ));
         }
-        
+
         fs::write(output_path, csv_content)?;
         Ok(())
     }
@@ -338,7 +359,8 @@ pub fn cleanup_old_snapshots(snapshots_dir: &str, days_to_keep: u64) -> Result<u
     let cutoff_timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
-        .as_secs() - (days_to_keep * 24 * 60 * 60);
+        .as_secs()
+        - (days_to_keep * 24 * 60 * 60);
 
     let manager = SnapshotManager::new(snapshots_dir);
     let snapshots = manager.load_all_snapshots()?;
@@ -395,12 +417,12 @@ mod tests {
     #[test]
     fn test_snapshot_comparison() {
         let manager = SnapshotManager::new("test_snapshots");
-        
+
         let snapshot1 = create_test_snapshot("test1", "original response");
         let snapshot2 = create_test_snapshot("test1", "modified response");
-        
+
         let comparison = manager.compare_snapshots(&snapshot1, &snapshot2);
-        
+
         assert!(!comparison.differences.is_empty());
         assert!(comparison.similarity_score < 1.0);
     }
@@ -408,12 +430,12 @@ mod tests {
     #[test]
     fn test_similarity_calculation() {
         let manager = SnapshotManager::new("test_snapshots");
-        
+
         let snapshot1 = create_test_snapshot("test1", "same response");
         let snapshot2 = create_test_snapshot("test1", "same response");
-        
+
         let comparison = manager.compare_snapshots(&snapshot1, &snapshot2);
-        
+
         assert!(comparison.differences.is_empty());
         assert_eq!(comparison.similarity_score, 1.0);
     }

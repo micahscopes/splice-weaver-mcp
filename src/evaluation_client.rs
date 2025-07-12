@@ -3,9 +3,9 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::process::Stdio;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::process::{Child, Command};
 use tracing::{debug, error, info};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
 pub struct EvaluationClientConfig {
@@ -117,15 +117,14 @@ impl EvaluationClient {
 
     pub async fn connect_to_mcp_server(&mut self) -> Result<()> {
         info!("Starting MCP server process");
-        
+
         let mut cmd = Command::new(&self.config.server_command);
         cmd.args(&self.config.server_args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let child = cmd.spawn()
-            .context("Failed to spawn MCP server process")?;
+        let child = cmd.spawn().context("Failed to spawn MCP server process")?;
 
         self.mcp_process = Some(child);
         info!("MCP server process started");
@@ -137,7 +136,8 @@ impl EvaluationClient {
         Ok(vec![
             McpTool {
                 name: "find_scope".to_string(),
-                description: "Find containing scope around a position using relational rules".to_string(),
+                description: "Find containing scope around a position using relational rules"
+                    .to_string(),
                 input_schema: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -146,7 +146,7 @@ impl EvaluationClient {
                             "description": "Code to search within"
                         },
                         "language": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Programming language (e.g., 'javascript', 'python', 'rust')"
                         },
                         "position": {
@@ -168,7 +168,8 @@ impl EvaluationClient {
             },
             McpTool {
                 name: "execute_rule".to_string(),
-                description: "Execute ast-grep rule for search, replace, or scan operations".to_string(),
+                description: "Execute ast-grep rule for search, replace, or scan operations"
+                    .to_string(),
                 input_schema: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -201,15 +202,15 @@ impl EvaluationClient {
     pub async fn call_mcp_tool(&self, name: &str, arguments: Value) -> Result<String> {
         // For now, simulate tool calls
         match name {
-            "find_scope" => {
-                Ok(format!("Found scope for tool call: {} with args: {}", name, arguments))
-            }
-            "execute_rule" => {
-                Ok(format!("Executed ast-grep rule: {} with args: {}", name, arguments))
-            }
-            _ => {
-                Err(anyhow::anyhow!("Unknown tool: {}", name))
-            }
+            "find_scope" => Ok(format!(
+                "Found scope for tool call: {} with args: {}",
+                name, arguments
+            )),
+            "execute_rule" => Ok(format!(
+                "Executed ast-grep rule: {} with args: {}",
+                name, arguments
+            )),
+            _ => Err(anyhow::anyhow!("Unknown tool: {}", name)),
         }
     }
 
@@ -221,16 +222,17 @@ impl EvaluationClient {
         });
 
         let tools = self.get_available_tools().await?;
-        let openai_tools: Vec<OpenAITool> = tools.into_iter().map(|tool| {
-            OpenAITool {
+        let openai_tools: Vec<OpenAITool> = tools
+            .into_iter()
+            .map(|tool| OpenAITool {
                 tool_type: "function".to_string(),
                 function: OpenAIToolFunction {
                     name: tool.name,
                     description: tool.description,
                     parameters: tool.input_schema,
                 },
-            }
-        }).collect();
+            })
+            .collect();
 
         let request = OpenAIChatRequest {
             model: self.config.model_name.clone(),
@@ -239,7 +241,8 @@ impl EvaluationClient {
             tool_choice: "auto".to_string(),
         };
 
-        let mut req_builder = self.http_client
+        let mut req_builder = self
+            .http_client
             .post(format!("{}/chat/completions", self.config.llm_endpoint))
             .json(&request);
 
@@ -247,7 +250,9 @@ impl EvaluationClient {
             req_builder = req_builder.bearer_auth(api_key);
         }
 
-        let response = req_builder.send().await
+        let response = req_builder
+            .send()
+            .await
             .context("Failed to send request to LLM")?;
 
         if !response.status().is_success() {
@@ -255,28 +260,34 @@ impl EvaluationClient {
             return Err(anyhow::anyhow!("LLM API error: {}", error_text));
         }
 
-        let chat_response: OpenAIChatResponse = response.json().await
+        let chat_response: OpenAIChatResponse = response
+            .json()
+            .await
             .context("Failed to parse LLM response")?;
 
         let message = &chat_response.choices[0].message;
-        
+
         if let Some(tool_calls) = &message.tool_calls {
             debug!("LLM requested {} tool calls", tool_calls.len());
-            
+
             let mut tool_results = Vec::new();
             for tool_call in tool_calls {
                 let args: Value = serde_json::from_str(&tool_call.function.arguments)
                     .context("Failed to parse tool arguments")?;
-                
-                info!("Calling tool: {} with args: {}", tool_call.function.name, args);
-                
+
+                info!(
+                    "Calling tool: {} with args: {}",
+                    tool_call.function.name, args
+                );
+
                 match self.call_mcp_tool(&tool_call.function.name, args).await {
                     Ok(result) => {
                         tool_results.push(format!("Tool {}: {}", tool_call.function.name, result));
                     }
                     Err(e) => {
                         error!("Tool call failed: {}", e);
-                        tool_results.push(format!("Tool {} failed: {}", tool_call.function.name, e));
+                        tool_results
+                            .push(format!("Tool {} failed: {}", tool_call.function.name, e));
                     }
                 }
             }
@@ -302,7 +313,8 @@ impl EvaluationClient {
                 tool_choice: "none".to_string(),
             };
 
-            let mut follow_up_req = self.http_client
+            let mut follow_up_req = self
+                .http_client
                 .post(format!("{}/chat/completions", self.config.llm_endpoint))
                 .json(&follow_up_request);
 
@@ -310,13 +322,19 @@ impl EvaluationClient {
                 follow_up_req = follow_up_req.bearer_auth(api_key);
             }
 
-            let follow_up_response = follow_up_req.send().await
+            let follow_up_response = follow_up_req
+                .send()
+                .await
                 .context("Failed to send follow-up request to LLM")?;
 
-            let follow_up_chat: OpenAIChatResponse = follow_up_response.json().await
+            let follow_up_chat: OpenAIChatResponse = follow_up_response
+                .json()
+                .await
                 .context("Failed to parse follow-up LLM response")?;
 
-            let final_content = follow_up_chat.choices[0].message.content
+            let final_content = follow_up_chat.choices[0]
+                .message
+                .content
                 .clone()
                 .unwrap_or_default();
 
@@ -345,17 +363,17 @@ impl EvaluationClient {
     pub async fn evaluate_prompt(&mut self, prompt: &str) -> Result<EvaluationResult> {
         let start_time = std::time::Instant::now();
         let initial_history_len = self.conversation_history.len();
-        
+
         let response = self.chat_with_llm(prompt).await?;
-        
+
         let duration = start_time.elapsed();
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         let tool_calls = self.extract_tool_calls_from_recent_conversation(initial_history_len);
-        
+
         Ok(EvaluationResult {
             prompt: prompt.to_string(),
             response,
@@ -369,15 +387,18 @@ impl EvaluationClient {
         })
     }
 
-    fn extract_tool_calls_from_recent_conversation(&self, start_index: usize) -> Vec<ToolCallResult> {
+    fn extract_tool_calls_from_recent_conversation(
+        &self,
+        start_index: usize,
+    ) -> Vec<ToolCallResult> {
         let mut tool_calls = Vec::new();
-        
+
         for message in self.conversation_history.iter().skip(start_index) {
             if let Some(calls) = &message.tool_calls {
                 for call in calls {
-                    let args: Value = serde_json::from_str(&call.function.arguments)
-                        .unwrap_or_default();
-                    
+                    let args: Value =
+                        serde_json::from_str(&call.function.arguments).unwrap_or_default();
+
                     tool_calls.push(ToolCallResult {
                         tool_name: call.function.name.clone(),
                         arguments: args,
@@ -388,7 +409,7 @@ impl EvaluationClient {
                 }
             }
         }
-        
+
         tool_calls
     }
 
@@ -421,32 +442,53 @@ impl EvaluationClient {
     }
 
     fn detect_code_blocks(&self, response: &str) -> bool {
-        response.contains("```") || 
-        response.contains("function ") ||
-        response.contains("const ") ||
-        response.contains("let ") ||
-        response.contains("var ") ||
-        response.contains("class ") ||
-        response.contains("impl ") ||
-        response.contains("fn ")
+        response.contains("```")
+            || response.contains("function ")
+            || response.contains("const ")
+            || response.contains("let ")
+            || response.contains("var ")
+            || response.contains("class ")
+            || response.contains("impl ")
+            || response.contains("fn ")
     }
 
     fn detect_error_patterns(&self, response: &str) -> bool {
-        let error_patterns = ["error", "failed", "exception", "panic", "undefined", "null reference"];
+        let error_patterns = [
+            "error",
+            "failed",
+            "exception",
+            "panic",
+            "undefined",
+            "null reference",
+        ];
         let response_lower = response.to_lowercase();
-        error_patterns.iter().any(|pattern| response_lower.contains(pattern))
+        error_patterns
+            .iter()
+            .any(|pattern| response_lower.contains(pattern))
     }
 
     fn analyze_sentiment(&self, response: &str) -> ResponseSentiment {
         let response_lower = response.to_lowercase();
-        
-        if response_lower.contains("sorry") || response_lower.contains("confused") || response_lower.contains("unclear") {
+
+        if response_lower.contains("sorry")
+            || response_lower.contains("confused")
+            || response_lower.contains("unclear")
+        {
             ResponseSentiment::Confused
-        } else if response_lower.contains("help") || response_lower.contains("assist") || response_lower.contains("guide") {
+        } else if response_lower.contains("help")
+            || response_lower.contains("assist")
+            || response_lower.contains("guide")
+        {
             ResponseSentiment::Helpful
-        } else if response_lower.contains("success") || response_lower.contains("complete") || response_lower.contains("done") {
+        } else if response_lower.contains("success")
+            || response_lower.contains("complete")
+            || response_lower.contains("done")
+        {
             ResponseSentiment::Positive
-        } else if response_lower.contains("fail") || response_lower.contains("error") || response_lower.contains("problem") {
+        } else if response_lower.contains("fail")
+            || response_lower.contains("error")
+            || response_lower.contains("problem")
+        {
             ResponseSentiment::Negative
         } else {
             ResponseSentiment::Neutral
@@ -456,7 +498,7 @@ impl EvaluationClient {
     fn extract_success_indicators(&self, response: &str) -> Vec<String> {
         let mut indicators = Vec::new();
         let response_lower = response.to_lowercase();
-        
+
         let patterns = [
             "successfully",
             "completed",
@@ -467,20 +509,20 @@ impl EvaluationClient {
             "generated",
             "created",
         ];
-        
+
         for pattern in &patterns {
             if response_lower.contains(pattern) {
                 indicators.push(pattern.to_string());
             }
         }
-        
+
         indicators
     }
 
     fn extract_failure_indicators(&self, response: &str) -> Vec<String> {
         let mut indicators = Vec::new();
         let response_lower = response.to_lowercase();
-        
+
         let patterns = [
             "failed",
             "error",
@@ -491,13 +533,13 @@ impl EvaluationClient {
             "not found",
             "timeout",
         ];
-        
+
         for pattern in &patterns {
             if response_lower.contains(pattern) {
                 indicators.push(pattern.to_string());
             }
         }
-        
+
         indicators
     }
 }
@@ -592,18 +634,21 @@ impl EvaluationSuite {
 
     pub async fn run_evaluations(&mut self) -> Result<Vec<(TestCase, EvaluationResult)>> {
         let mut results = Vec::new();
-        
+
         for test_case in &self.test_cases {
             info!("Running evaluation: {}", test_case.name);
             self.client.reset_conversation();
-            
+
             let result = self.client.evaluate_prompt(&test_case.prompt).await?;
             let success = (test_case.success_criteria)(&result);
-            
-            info!("Evaluation {} completed: success={}", test_case.name, success);
+
+            info!(
+                "Evaluation {} completed: success={}",
+                test_case.name, success
+            );
             results.push((test_case.clone(), result));
         }
-        
+
         Ok(results)
     }
 }

@@ -5,8 +5,8 @@ use rmcp::model::*;
 use rust_embed::RustEmbed;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tokio::process::Command as TokioCommand;
 
 #[derive(RustEmbed)]
@@ -28,46 +28,44 @@ struct Position {
 
 fn get_embedded_catalog() -> Result<String> {
     match Assets::get("catalog.json") {
-        Some(catalog_file) => {
-            std::str::from_utf8(&catalog_file.data)
-                .map(|s| s.to_string())
-                .map_err(|e| anyhow!("Failed to parse embedded catalog.json as UTF-8: {}", e))
-        }
-        None => Err(anyhow!("Embedded catalog.json not found"))
+        Some(catalog_file) => std::str::from_utf8(&catalog_file.data)
+            .map(|s| s.to_string())
+            .map_err(|e| anyhow!("Failed to parse embedded catalog.json as UTF-8: {}", e)),
+        None => Err(anyhow!("Embedded catalog.json not found")),
     }
 }
 
 impl AstGrepTools {
     pub fn new(binary_manager: Arc<BinaryManager>) -> Self {
-        Self { 
+        Self {
             binary_manager,
             search_engine: Arc::new(Mutex::new(None)),
             roots: Arc::new(Mutex::new(Vec::new())),
         }
     }
-    
+
     pub fn set_roots(&self, roots: Vec<Root>) {
         *self.roots.lock().unwrap() = roots;
     }
-    
+
     pub fn resolve_path(&self, target: &str) -> Result<PathBuf> {
         let target_path = Path::new(target);
-        
+
         // If it's already an absolute path, return it as-is
         if target_path.is_absolute() {
             return Ok(target_path.to_path_buf());
         }
-        
+
         // Get the roots
         let roots = self.roots.lock().unwrap();
-        
+
         // If no roots are configured, default to current directory
         if roots.is_empty() {
             let current_dir = std::env::current_dir()
                 .map_err(|e| anyhow!("Failed to get current directory: {}", e))?;
             return Ok(current_dir.join(target_path));
         }
-        
+
         // Try each root in order until we find the first match
         for root in roots.iter() {
             let root_path = match root.uri.strip_prefix("file://") {
@@ -77,21 +75,21 @@ impl AstGrepTools {
                     PathBuf::from(&root.uri)
                 }
             };
-            
+
             let resolved_path = root_path.join(target_path);
-            
+
             // Check if the resolved path exists
             if resolved_path.exists() {
                 return Ok(resolved_path);
             }
         }
-        
+
         // If no matches found, return an error with helpful information
         let root_names: Vec<String> = roots
             .iter()
             .map(|r| r.name.clone().unwrap_or_else(|| r.uri.clone()))
             .collect();
-        
+
         Err(anyhow!(
             "Path '{}' not found in any root directory. Available roots: {}",
             target,
@@ -104,14 +102,14 @@ impl AstGrepTools {
         F: FnOnce(&SimpleSearchEngine) -> Result<R>,
     {
         let mut engine_guard = self.search_engine.lock().unwrap();
-        
+
         if engine_guard.is_none() {
             // Initialize search engine with embedded catalog
             let catalog_content = get_embedded_catalog()?;
             let engine = SimpleSearchEngine::from_content(&catalog_content)?;
             *engine_guard = Some(engine);
         }
-        
+
         f(engine_guard.as_ref().unwrap())
     }
 
@@ -273,7 +271,7 @@ impl AstGrepTools {
                 },
                 None,
             ),
-            
+
             // Core documentation resources
             Resource::new(
                 RawResource {
@@ -356,7 +354,7 @@ impl AstGrepTools {
                 },
                 None,
             ),
-            
+
             // Quick access to popular language examples
             Resource::new(
                 RawResource {
@@ -416,7 +414,10 @@ impl AstGrepTools {
             RawResource {
                 uri: "ast-grep://catalog-status".to_string(),
                 name: "📊 Catalog Status".to_string(),
-                description: Some(format!("Catalog loading status: {}", catalog_status.summary)),
+                description: Some(format!(
+                    "Catalog loading status: {}",
+                    catalog_status.summary
+                )),
                 mime_type: Some("text/markdown".to_string()),
                 size: None,
             },
@@ -474,7 +475,7 @@ impl AstGrepTools {
             "ast-grep://catalog-status" => self.get_catalog_status_content(),
             "ast-grep://navigation-error" => self.get_navigation_error_content(),
             "ast-grep://catalog-error" => self.get_catalog_error_content(),
-            
+
             // Core resources
             "ast-grep://binary-path" => self.get_binary_path(),
             "ast-grep://cli-reference" => self.get_cli_reference(),
@@ -483,7 +484,7 @@ impl AstGrepTools {
             "ast-grep://node-kinds" => self.get_node_kinds(),
             "ast-grep://cheatsheet/rules" => self.get_cheatsheet_rules(),
             "ast-grep://cheatsheet/yaml" => self.get_cheatsheet_yaml(),
-            
+
             // Legacy static URIs (deprecated, use dynamic ones)
             "ast-grep://examples-by-language" => self.get_examples_by_language(),
             "ast-grep://pattern-syntax" => self.get_pattern_syntax(),
@@ -1279,10 +1280,10 @@ Use this rule with the execute_rule tool:
     // Catalog-related methods
     fn load_catalog_resources(&self) -> Result<Vec<Resource>> {
         let catalog_content = get_embedded_catalog()?;
-        
+
         let catalog: Value = serde_json::from_str(&catalog_content)
             .map_err(|e| anyhow!("Failed to parse catalog.json: {}", e))?;
-        
+
         let mut resources = Vec::new();
 
         if let Some(examples) = catalog["examples"].as_array() {
@@ -1294,14 +1295,14 @@ Use this rule with the execute_rule tool:
                     let title = example["title"].as_str().unwrap_or(id);
                     let description = example["description"].as_str().unwrap_or("No description");
                     let has_fix = example["has_fix"].as_bool().unwrap_or(false);
-                    
+
                     // Create more informative resource names and descriptions
                     let name = if has_fix {
                         format!("🔧 {title}")
                     } else {
                         format!("📝 {title}")
                     };
-                    
+
                     let full_description = format!(
                         "{} [{}{}] {}",
                         description,
@@ -1317,7 +1318,7 @@ Use this rule with the execute_rule tool:
                             ""
                         }
                     );
-                    
+
                     resources.push(Resource::new(
                         RawResource {
                             uri: format!("ast-grep://catalog/{id}"),
@@ -1330,7 +1331,10 @@ Use this rule with the execute_rule tool:
                     ));
                 } else {
                     // Log warning for malformed examples but continue processing
-                    eprintln!("Warning: Catalog example {} is missing content field", index);
+                    eprintln!(
+                        "Warning: Catalog example {} is missing content field",
+                        index
+                    );
                 }
             }
         } else {
@@ -1342,7 +1346,7 @@ Use this rule with the execute_rule tool:
 
     fn get_catalog_example(&self, uri: &str) -> Result<String> {
         let catalog_content = get_embedded_catalog()?;
-        
+
         let catalog: Value = serde_json::from_str(&catalog_content)?;
         let rule_id = uri.strip_prefix("ast-grep://catalog/").unwrap_or("");
 
@@ -1364,10 +1368,10 @@ Use this rule with the execute_rule tool:
     // Navigation-related methods
     fn load_navigation_resources(&self) -> Result<Vec<Resource>> {
         let catalog_content = get_embedded_catalog()?;
-        
+
         let catalog: Value = serde_json::from_str(&catalog_content)
             .map_err(|e| anyhow!("Failed to parse catalog.json for navigation: {}", e))?;
-        
+
         let mut resources = Vec::new();
 
         if let Some(examples) = catalog["examples"].as_array() {
@@ -1375,7 +1379,7 @@ Use this rule with the execute_rule tool:
             let mut languages = std::collections::HashSet::new();
             let mut features = std::collections::HashSet::new();
             let mut rule_types = std::collections::HashSet::new();
-            
+
             for example in examples {
                 if let Some(lang) = example["language"].as_str() {
                     languages.insert(lang.to_string());
@@ -1398,15 +1402,18 @@ Use this rule with the execute_rule tool:
 
             // Add language navigation resources
             for language in languages {
-                let count = examples.iter()
+                let count = examples
+                    .iter()
                     .filter(|ex| ex["language"].as_str() == Some(&language))
                     .count();
-                
+
                 resources.push(Resource::new(
                     RawResource {
                         uri: format!("ast-grep://navigation/language/{language}"),
                         name: format!("Catalog: {} Examples", language.to_uppercase()),
-                        description: Some(format!("All {count} catalog examples for {language} programming language")),
+                        description: Some(format!(
+                            "All {count} catalog examples for {language} programming language"
+                        )),
                         mime_type: Some("application/json".to_string()),
                         size: None,
                     },
@@ -1416,18 +1423,22 @@ Use this rule with the execute_rule tool:
 
             // Add feature navigation resources
             for feature in features {
-                let count = examples.iter()
+                let count = examples
+                    .iter()
                     .filter(|ex| {
-                        ex["features"].as_array()
+                        ex["features"]
+                            .as_array()
                             .is_some_and(|arr| arr.iter().any(|f| f.as_str() == Some(&feature)))
                     })
                     .count();
-                
+
                 resources.push(Resource::new(
                     RawResource {
                         uri: format!("ast-grep://navigation/feature/{feature}"),
                         name: format!("Catalog: {feature} Feature"),
-                        description: Some(format!("All {count} examples using the '{feature}' feature")),
+                        description: Some(format!(
+                            "All {count} examples using the '{feature}' feature"
+                        )),
                         mime_type: Some("application/json".to_string()),
                         size: None,
                     },
@@ -1436,16 +1447,19 @@ Use this rule with the execute_rule tool:
             }
 
             // Add examples with fixes
-            let fix_count = examples.iter()
+            let fix_count = examples
+                .iter()
                 .filter(|ex| ex["has_fix"].as_bool() == Some(true))
                 .count();
-            
+
             if fix_count > 0 {
                 resources.push(Resource::new(
                     RawResource {
                         uri: "ast-grep://navigation/has-fix".to_string(),
                         name: "Catalog: Examples with Fixes".to_string(),
-                        description: Some(format!("All {fix_count} examples that include code transformations/fixes")),
+                        description: Some(format!(
+                            "All {fix_count} examples that include code transformations/fixes"
+                        )),
                         mime_type: Some("application/json".to_string()),
                         size: None,
                     },
@@ -1455,18 +1469,22 @@ Use this rule with the execute_rule tool:
 
             // Add rule type navigation
             for rule_type in rule_types {
-                let count = examples.iter()
+                let count = examples
+                    .iter()
                     .filter(|ex| {
-                        ex["rules"].as_array()
+                        ex["rules"]
+                            .as_array()
                             .is_some_and(|arr| arr.iter().any(|r| r.as_str() == Some(&rule_type)))
                     })
                     .count();
-                
+
                 resources.push(Resource::new(
                     RawResource {
                         uri: format!("ast-grep://navigation/rule/{rule_type}"),
                         name: format!("Catalog: {rule_type} Rules"),
-                        description: Some(format!("All {count} examples using '{rule_type}' rule type")),
+                        description: Some(format!(
+                            "All {count} examples using '{rule_type}' rule type"
+                        )),
                         mime_type: Some("application/json".to_string()),
                         size: None,
                     },
@@ -1480,16 +1498,19 @@ Use this rule with the execute_rule tool:
 
     fn get_navigation_content(&self, uri: &str) -> Result<String> {
         let catalog_content = get_embedded_catalog()?;
-        
+
         let catalog: Value = serde_json::from_str(&catalog_content)?;
-        
+
         if let Some(examples) = catalog["examples"].as_array() {
             if uri.starts_with("ast-grep://navigation/language/") {
-                let language = uri.strip_prefix("ast-grep://navigation/language/").unwrap_or("");
-                let filtered: Vec<&Value> = examples.iter()
+                let language = uri
+                    .strip_prefix("ast-grep://navigation/language/")
+                    .unwrap_or("");
+                let filtered: Vec<&Value> = examples
+                    .iter()
                     .filter(|ex| ex["language"].as_str() == Some(language))
                     .collect();
-                
+
                 return Ok(serde_json::to_string_pretty(&serde_json::json!({
                     "language": language,
                     "total_examples": filtered.len(),
@@ -1504,16 +1525,20 @@ Use this rule with the execute_rule tool:
                     })).collect::<Vec<_>>()
                 }))?);
             }
-            
+
             if uri.starts_with("ast-grep://navigation/feature/") {
-                let feature = uri.strip_prefix("ast-grep://navigation/feature/").unwrap_or("");
-                let filtered: Vec<&Value> = examples.iter()
+                let feature = uri
+                    .strip_prefix("ast-grep://navigation/feature/")
+                    .unwrap_or("");
+                let filtered: Vec<&Value> = examples
+                    .iter()
                     .filter(|ex| {
-                        ex["features"].as_array()
+                        ex["features"]
+                            .as_array()
                             .is_some_and(|arr| arr.iter().any(|f| f.as_str() == Some(feature)))
                     })
                     .collect();
-                
+
                 return Ok(serde_json::to_string_pretty(&serde_json::json!({
                     "feature": feature,
                     "total_examples": filtered.len(),
@@ -1526,12 +1551,13 @@ Use this rule with the execute_rule tool:
                     })).collect::<Vec<_>>()
                 }))?);
             }
-            
+
             if uri == "ast-grep://navigation/has-fix" {
-                let filtered: Vec<&Value> = examples.iter()
+                let filtered: Vec<&Value> = examples
+                    .iter()
                     .filter(|ex| ex["has_fix"].as_bool() == Some(true))
                     .collect();
-                
+
                 return Ok(serde_json::to_string_pretty(&serde_json::json!({
                     "filter": "has_fix",
                     "total_examples": filtered.len(),
@@ -1546,14 +1572,18 @@ Use this rule with the execute_rule tool:
             }
 
             if uri.starts_with("ast-grep://navigation/rule/") {
-                let rule_type = uri.strip_prefix("ast-grep://navigation/rule/").unwrap_or("");
-                let filtered: Vec<&Value> = examples.iter()
+                let rule_type = uri
+                    .strip_prefix("ast-grep://navigation/rule/")
+                    .unwrap_or("");
+                let filtered: Vec<&Value> = examples
+                    .iter()
                     .filter(|ex| {
-                        ex["rules"].as_array()
+                        ex["rules"]
+                            .as_array()
                             .is_some_and(|arr| arr.iter().any(|r| r.as_str() == Some(rule_type)))
                     })
                     .collect();
-                
+
                 return Ok(serde_json::to_string_pretty(&serde_json::json!({
                     "rule_type": rule_type,
                     "total_examples": filtered.len(),
@@ -1576,32 +1606,34 @@ Use this rule with the execute_rule tool:
         if let Some(content) = self.parse_docs_uri(uri)? {
             return Ok(Some(content));
         }
-        
+
         if let Some(content) = self.parse_examples_uri(uri)? {
             return Ok(Some(content));
         }
-        
+
         if let Some(content) = self.parse_patterns_uri(uri)? {
             return Ok(Some(content));
         }
-        
+
         if let Some(content) = self.parse_query_uri(uri)? {
             return Ok(Some(content));
         }
-        
+
         Ok(None)
     }
 
     fn parse_docs_uri(&self, uri: &str) -> Result<Option<String>> {
         if let Some(doc_type) = uri.strip_prefix("ast-grep://docs/") {
             let (doc_type, params) = self.parse_uri_params(doc_type);
-            
+
             match doc_type {
                 "examples-by-language" => Ok(Some(self.get_examples_by_language()?)),
                 "pattern-syntax" => Ok(Some(self.get_pattern_syntax()?)),
                 "rule-composition" => Ok(Some(self.get_rule_composition()?)),
                 _ if doc_type.starts_with("language-guide/") => {
-                    let language = doc_type.strip_prefix("language-guide/").unwrap_or("javascript");
+                    let language = doc_type
+                        .strip_prefix("language-guide/")
+                        .unwrap_or("javascript");
                     Ok(Some(self.get_language_guide(language, &params)?))
                 }
                 _ => Ok(None),
@@ -1638,16 +1670,16 @@ Use this rule with the execute_rule tool:
         }
     }
 
-    fn parse_uri_params<'a>(&self, input: &'a str) -> (&'a str, std::collections::HashMap<String, String>) {
+    fn parse_uri_params<'a>(
+        &self,
+        input: &'a str,
+    ) -> (&'a str, std::collections::HashMap<String, String>) {
         let mut params = std::collections::HashMap::new();
-        
+
         if let Some((base, query_string)) = input.split_once('?') {
             for param_pair in query_string.split('&') {
                 if let Some((key, value)) = param_pair.split_once('=') {
-                    params.insert(
-                        key.to_string(),
-                        value.to_string(),
-                    );
+                    params.insert(key.to_string(), value.to_string());
                 }
             }
             (base, params)
@@ -1834,7 +1866,8 @@ rule:
    constraints:
      VAR: { regex: "^[A-Z_]+$" }  # Only CONSTANTS
    ```
-"#.to_string())
+"#
+        .to_string())
     }
 
     fn get_pattern_syntax(&self) -> Result<String> {
@@ -1971,7 +2004,8 @@ pattern: "if ($COND) { $$ }"    # More flexible
 | `$$` | Statements | Block contents, statement sequences |
 | `$_.method()` | Anonymous match | Any object's method call |
 | `$$$_` | Anonymous multi | Any number of items (don't capture) |
-"#.to_string())
+"#
+        .to_string())
     }
 
     fn get_rule_composition(&self) -> Result<String> {
@@ -2215,15 +2249,27 @@ note: |
   - Implementing the feature
   - Removing the comment if no longer relevant
 ```
-"#.to_string())
+"#
+        .to_string())
     }
 
     // Dynamic resource content generators
-    fn get_language_guide(&self, language: &str, params: &std::collections::HashMap<String, String>) -> Result<String> {
-        let level = params.get("level").map(|s| s.as_str()).unwrap_or("beginner");
-        let focus = params.get("focus").map(|s| s.as_str()).unwrap_or("patterns");
-        
-        Ok(format!(r#"# {language} AST-Grep Guide ({level} level)
+    fn get_language_guide(
+        &self,
+        language: &str,
+        params: &std::collections::HashMap<String, String>,
+    ) -> Result<String> {
+        let level = params
+            .get("level")
+            .map(|s| s.as_str())
+            .unwrap_or("beginner");
+        let focus = params
+            .get("focus")
+            .map(|s| s.as_str())
+            .unwrap_or("patterns");
+
+        Ok(format!(
+            r#"# {language} AST-Grep Guide ({level} level)
 
 ## Focus: {focus}
 
@@ -2241,7 +2287,7 @@ This guide provides {level}-level patterns and examples for {language} developme
 
 {best_practices}
 
-"#, 
+"#,
             language = language.to_title_case(),
             level = level,
             focus = focus,
@@ -2251,13 +2297,21 @@ This guide provides {level}-level patterns and examples for {language} developme
         ))
     }
 
-    fn get_language_examples(&self, language: &str, params: &std::collections::HashMap<String, String>) -> Result<String> {
+    fn get_language_examples(
+        &self,
+        language: &str,
+        params: &std::collections::HashMap<String, String>,
+    ) -> Result<String> {
         let category = params.get("category").map(|s| s.as_str()).unwrap_or("all");
-        let complexity = params.get("complexity").map(|s| s.as_str()).unwrap_or("basic");
-        
+        let complexity = params
+            .get("complexity")
+            .map(|s| s.as_str())
+            .unwrap_or("basic");
+
         let examples = self.filter_examples_by_criteria(language, category, complexity)?;
-        
-        Ok(format!(r#"# {language} Examples
+
+        Ok(format!(
+            r#"# {language} Examples
 
 **Category**: {category}  
 **Complexity**: {complexity}
@@ -2276,13 +2330,18 @@ These examples can be copied directly into your ast-grep rules or used as templa
         ))
     }
 
-    fn get_pattern_category(&self, category: &str, params: &std::collections::HashMap<String, String>) -> Result<String> {
+    fn get_pattern_category(
+        &self,
+        category: &str,
+        params: &std::collections::HashMap<String, String>,
+    ) -> Result<String> {
         let language = params.get("language").map(|s| s.as_str()).unwrap_or("any");
         let with_fixes = params.get("fixes").map(|s| s == "true").unwrap_or(false);
-        
+
         let patterns = self.get_categorized_patterns(category, language, with_fixes)?;
-        
-        Ok(format!(r#"# {category} Patterns
+
+        Ok(format!(
+            r#"# {category} Patterns
 
 **Language Filter**: {language}  
 **Include Fixes**: {with_fixes}
@@ -2302,7 +2361,11 @@ These examples can be copied directly into your ast-grep rules or used as templa
         ))
     }
 
-    fn handle_query_resource(&self, query_type: &str, params: &std::collections::HashMap<String, String>) -> Result<String> {
+    fn handle_query_resource(
+        &self,
+        query_type: &str,
+        params: &std::collections::HashMap<String, String>,
+    ) -> Result<String> {
         match query_type {
             "search" => self.handle_search_query(params),
             "filter" => self.handle_filter_query(params),
@@ -2311,21 +2374,34 @@ These examples can be copied directly into your ast-grep rules or used as templa
         }
     }
 
-    fn handle_search_query(&self, params: &std::collections::HashMap<String, String>) -> Result<String> {
-        let query = params.get("q").ok_or_else(|| anyhow!("Missing search query"))?;
+    fn handle_search_query(
+        &self,
+        params: &std::collections::HashMap<String, String>,
+    ) -> Result<String> {
+        let query = params
+            .get("q")
+            .ok_or_else(|| anyhow!("Missing search query"))?;
         let language = params.get("lang").map(|s| s.as_str()).unwrap_or("any");
-        let limit = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(10);
-        
+        let limit = params
+            .get("limit")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(10);
+
         // Get actual results to count them
         let search_results = self.with_search_engine(|engine| {
-            let lang_filter = if language == "any" { None } else { Some(language) };
+            let lang_filter = if language == "any" {
+                None
+            } else {
+                Some(language)
+            };
             engine.search(query, lang_filter, limit)
         })?;
-        
+
         // Search through catalog for matching patterns (format results)
         let results_display = self.search_catalog(query, language, limit)?;
-        
-        Ok(format!(r#"# Search Results for "{query}"
+
+        Ok(format!(
+            r#"# Search Results for "{query}"
 
 **Language**: {language}  
 **Results**: {count} matches (limited to {limit})
@@ -2341,14 +2417,20 @@ These examples can be copied directly into your ast-grep rules or used as templa
         ))
     }
 
-    fn handle_filter_query(&self, params: &std::collections::HashMap<String, String>) -> Result<String> {
+    fn handle_filter_query(
+        &self,
+        params: &std::collections::HashMap<String, String>,
+    ) -> Result<String> {
         let has_fix = params.get("has_fix").map(|s| s == "true");
         let language = params.get("language").map(|s| s.as_str());
-        let features = params.get("features").map(|s| s.split(',').collect::<Vec<_>>());
-        
+        let features = params
+            .get("features")
+            .map(|s| s.split(',').collect::<Vec<_>>());
+
         let filtered = self.filter_catalog(has_fix, language, features.as_deref())?;
-        
-        Ok(format!(r#"# Filtered Catalog
+
+        Ok(format!(
+            r#"# Filtered Catalog
 
 **Filters Applied**:
 {filters}
@@ -2364,14 +2446,20 @@ These examples can be copied directly into your ast-grep rules or used as templa
         ))
     }
 
-    fn handle_similar_query(&self, params: &std::collections::HashMap<String, String>) -> Result<String> {
-        let pattern = params.get("pattern").ok_or_else(|| anyhow!("Missing pattern"))?;
-        let limit = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(10);
-        
-        let results = self.with_search_engine(|engine| {
-            engine.similarity_search(pattern, limit)
-        })?;
-        
+    fn handle_similar_query(
+        &self,
+        params: &std::collections::HashMap<String, String>,
+    ) -> Result<String> {
+        let pattern = params
+            .get("pattern")
+            .ok_or_else(|| anyhow!("Missing pattern"))?;
+        let limit = params
+            .get("limit")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(10);
+
+        let results = self.with_search_engine(|engine| engine.similarity_search(pattern, limit))?;
+
         if results.is_empty() {
             return Ok(format!(
                 "## No Similar Patterns Found\n\nNo examples found similar to the provided pattern.\n\n**Pattern**: {}\n\n**Suggestion**: Try using simpler or more general terms in your pattern.",
@@ -2380,34 +2468,45 @@ These examples can be copied directly into your ast-grep rules or used as templa
         }
 
         let mut output = format!("# Similar Patterns to \"{}\"\n\n", pattern);
-        output.push_str(&format!("**Found {} similar examples:**\n\n", results.len()));
-        
+        output.push_str(&format!(
+            "**Found {} similar examples:**\n\n",
+            results.len()
+        ));
+
         for (i, result) in results.iter().enumerate() {
             output.push_str(&format!("### {}. {}\n\n", i + 1, result.title));
-            output.push_str(&format!("**Language**: {} | **Similarity Score**: {:.2}\n", result.language, result.score));
-            
+            output.push_str(&format!(
+                "**Language**: {} | **Similarity Score**: {:.2}\n",
+                result.language, result.score
+            ));
+
             if result.has_fix {
                 output.push_str("**Has Fix**: Yes ✅\n");
             }
-            
+
             output.push_str(&format!("\n**Description**: {}\n\n", result.description));
-            
+
             if !result.yaml_content.is_empty() {
                 output.push_str("**YAML Rule**:\n```yaml\n");
                 output.push_str(&result.yaml_content);
                 output.push_str("\n```\n\n");
             }
-            
+
             if !result.playground_link.is_empty() {
-                output.push_str(&format!("**[Try it in Playground]({})**\n\n", result.playground_link));
+                output.push_str(&format!(
+                    "**[Try it in Playground]({})**\n\n",
+                    result.playground_link
+                ));
             }
-            
+
             output.push_str("---\n\n");
         }
 
         // Add caveat message for similarity search
         output.push_str("## ⚠️ Similarity Search Note\n\n");
-        output.push_str("These examples were found based on text similarity to your provided pattern. ");
+        output.push_str(
+            "These examples were found based on text similarity to your provided pattern. ",
+        );
         output.push_str("**The similarity scoring is based on common terms and concepts, not exact pattern matching.** ");
         output.push_str("Review each example carefully to determine if it's relevant to your specific use case.\n\n");
         output.push_str("Consider these as inspiration and adapt them to your exact requirements.");
@@ -2433,7 +2532,8 @@ rule:
 rule:
   pattern: "$OBJ.$METHOD($$$ARGS)"
 ```
-"#.to_string()),
+"#
+            .to_string()),
             "python" => Ok(r#"
 ### Function Definitions
 ```yaml
@@ -2446,7 +2546,8 @@ rule:
 rule:
   pattern: "class $NAME: $$$BODY"
 ```
-"#.to_string()),
+"#
+            .to_string()),
             "rust" => Ok(r#"
 ### Function Items
 ```yaml
@@ -2459,30 +2560,49 @@ rule:
 rule:
   pattern: "match $EXPR { $$$ARMS }"
 ```
-"#.to_string()),
+"#
+            .to_string()),
             _ => Ok("Generic patterns available for all languages.".to_string()),
         }
     }
 
     fn get_advanced_patterns(&self, language: &str, level: &str) -> Result<String> {
         if level == "advanced" {
-            Ok(format!("Advanced {language} patterns with complex relational rules and constraints."))
+            Ok(format!(
+                "Advanced {language} patterns with complex relational rules and constraints."
+            ))
         } else {
             Ok("Intermediate patterns with basic relational rules.".to_string())
         }
     }
 
     fn get_best_practices(&self, language: &str) -> Result<String> {
-        Ok(format!("Best practices for writing maintainable {language} ast-grep rules."))
+        Ok(format!(
+            "Best practices for writing maintainable {language} ast-grep rules."
+        ))
     }
 
-    fn filter_examples_by_criteria(&self, language: &str, category: &str, complexity: &str) -> Result<String> {
+    fn filter_examples_by_criteria(
+        &self,
+        language: &str,
+        category: &str,
+        complexity: &str,
+    ) -> Result<String> {
         // This would filter the actual catalog based on criteria
-        Ok(format!("Filtered examples for {language}, category: {category}, complexity: {complexity}"))
+        Ok(format!(
+            "Filtered examples for {language}, category: {category}, complexity: {complexity}"
+        ))
     }
 
-    fn get_categorized_patterns(&self, category: &str, language: &str, with_fixes: bool) -> Result<String> {
-        Ok(format!("Patterns for category: {category}, language: {language}, fixes: {with_fixes}"))
+    fn get_categorized_patterns(
+        &self,
+        category: &str,
+        language: &str,
+        with_fixes: bool,
+    ) -> Result<String> {
+        Ok(format!(
+            "Patterns for category: {category}, language: {language}, fixes: {with_fixes}"
+        ))
     }
 
     fn get_related_categories(&self, category: &str) -> Result<String> {
@@ -2491,7 +2611,11 @@ rule:
 
     fn search_catalog(&self, query: &str, language: &str, limit: usize) -> Result<String> {
         let results = self.with_search_engine(|engine| {
-            let lang_filter = if language == "any" { None } else { Some(language) };
+            let lang_filter = if language == "any" {
+                None
+            } else {
+                Some(language)
+            };
             engine.search(query, lang_filter, limit)
         })?;
 
@@ -2503,38 +2627,43 @@ rule:
         }
 
         let mut output = String::new();
-        
+
         for (i, result) in results.iter().enumerate() {
             output.push_str(&format!("### {}. {}\n\n", i + 1, result.title));
             output.push_str(&format!("**Language**: {}\n", result.language));
             output.push_str(&format!("**Score**: {:.2}\n", result.score));
-            
+
             if result.has_fix {
                 output.push_str("**Has Fix**: Yes ✅\n");
             }
-            
+
             if !result.features.is_empty() {
                 output.push_str(&format!("**Features**: {}\n", result.features.join(", ")));
             }
-            
+
             output.push_str(&format!("\n**Description**: {}\n\n", result.description));
-            
+
             if !result.yaml_content.is_empty() {
                 output.push_str("**YAML Rule**:\n```yaml\n");
                 output.push_str(&result.yaml_content);
                 output.push_str("\n```\n\n");
             }
-            
+
             if !result.playground_link.is_empty() {
-                output.push_str(&format!("**[Try it in Playground]({})**\n\n", result.playground_link));
+                output.push_str(&format!(
+                    "**[Try it in Playground]({})**\n\n",
+                    result.playground_link
+                ));
             }
-            
+
             output.push_str("---\n\n");
         }
 
         // Add caveat message
         output.push_str("## ⚠️ Important Note\n\n");
-        output.push_str("These examples are provided to help you understand similar patterns and approaches. ");
+        output.push_str(
+            "These examples are provided to help you understand similar patterns and approaches. ",
+        );
         output.push_str("**Please don't assume these examples will be a perfect fit for your specific use case.** ");
         output.push_str("You may need to adapt the patterns, rules, or logic to match your exact requirements.\n\n");
         output.push_str("Consider these examples as starting points and learning resources rather than drop-in solutions.");
@@ -2546,11 +2675,21 @@ rule:
         Ok(42) // From the catalog
     }
 
-    fn filter_catalog(&self, has_fix: Option<bool>, language: Option<&str>, features: Option<&[&str]>) -> Result<String> {
+    fn filter_catalog(
+        &self,
+        has_fix: Option<bool>,
+        language: Option<&str>,
+        features: Option<&[&str]>,
+    ) -> Result<String> {
         Ok(format!("Filtered catalog results (fix: {has_fix:?}, lang: {language:?}, features: {features:?})"))
     }
 
-    fn format_filters(&self, has_fix: Option<bool>, language: Option<&str>, features: Option<&[&str]>) -> String {
+    fn format_filters(
+        &self,
+        has_fix: Option<bool>,
+        language: Option<&str>,
+        features: Option<&[&str]>,
+    ) -> String {
         let mut filters = Vec::new();
         if let Some(fix) = has_fix {
             filters.push(format!("- Has fix: {fix}"));
@@ -2569,9 +2708,13 @@ rule:
         let query = args["query"].as_str().ok_or(anyhow!("Missing query"))?;
         let language = args["language"].as_str().unwrap_or("any");
         let limit = args["limit"].as_u64().unwrap_or(10) as usize;
-        
+
         let results = self.with_search_engine(|engine| {
-            let lang_filter = if language == "any" { None } else { Some(language) };
+            let lang_filter = if language == "any" {
+                None
+            } else {
+                Some(language)
+            };
             engine.search(query, lang_filter, limit)
         })?;
 
@@ -2582,10 +2725,20 @@ rule:
             ));
         }
 
-        let mut output = format!("Found {} examples for '{}' in {}:\n\n", results.len(), query, language);
-        
+        let mut output = format!(
+            "Found {} examples for '{}' in {}:\n\n",
+            results.len(),
+            query,
+            language
+        );
+
         for (i, result) in results.iter().enumerate() {
-            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
+            output.push_str(&format!(
+                "{}. {} ({})\n",
+                i + 1,
+                result.title,
+                result.language
+            ));
             output.push_str(&format!("   Description: {}\n", result.description));
             if result.has_fix {
                 output.push_str("   ✅ Has Fix\n");
@@ -2596,7 +2749,9 @@ rule:
             output.push_str("\n");
         }
 
-        output.push_str("⚠️ Note: These are starting points - adapt them to your specific requirements.");
+        output.push_str(
+            "⚠️ Note: These are starting points - adapt them to your specific requirements.",
+        );
         Ok(output)
     }
 
@@ -2709,7 +2864,8 @@ Welcome! This guide helps you navigate all available resources in the AST-Grep M
 - **Need examples?** Start with `ast-grep://examples/{language}`
 - **Complex rules?** Read `ast-grep://docs/rule-composition`
 
-This MCP server provides 50+ resources to help you master AST-based code transformation!"#.to_string())
+This MCP server provides 50+ resources to help you master AST-based code transformation!"#
+            .to_string())
     }
 
     fn get_available_languages(&self) -> Result<String> {
@@ -2813,50 +2969,50 @@ ast-grep://docs/language-guide/{language}
 If your language isn't listed:
 1. Check if it has a Tree-sitter grammar
 2. File an issue at the ast-grep repository
-3. Consider using a similar language's patterns as a starting point"#.to_string())
+3. Consider using a similar language's patterns as a starting point"#
+            .to_string())
     }
 
     fn get_catalog_status(&self) -> CatalogStatus {
         match get_embedded_catalog() {
-            Ok(content) => {
-                match serde_json::from_str::<Value>(&content) {
-                    Ok(catalog) => {
-                        let example_count = catalog["examples"]
-                            .as_array()
-                            .map(|arr| arr.len())
-                            .unwrap_or(0);
-                        
-                        CatalogStatus {
-                            loaded: true,
-                            path: "embedded://catalog.json".to_string(),
-                            example_count,
-                            summary: format!("✅ Loaded {} catalog examples", example_count),
-                            error: None,
-                        }
-                    }
-                    Err(e) => CatalogStatus {
-                        loaded: false,
+            Ok(content) => match serde_json::from_str::<Value>(&content) {
+                Ok(catalog) => {
+                    let example_count = catalog["examples"]
+                        .as_array()
+                        .map(|arr| arr.len())
+                        .unwrap_or(0);
+
+                    CatalogStatus {
+                        loaded: true,
                         path: "embedded://catalog.json".to_string(),
-                        example_count: 0,
-                        summary: "❌ Catalog file corrupt".to_string(),
-                        error: Some(format!("JSON parse error: {}", e)),
+                        example_count,
+                        summary: format!("✅ Loaded {} catalog examples", example_count),
+                        error: None,
                     }
                 }
-            }
+                Err(e) => CatalogStatus {
+                    loaded: false,
+                    path: "embedded://catalog.json".to_string(),
+                    example_count: 0,
+                    summary: "❌ Catalog file corrupt".to_string(),
+                    error: Some(format!("JSON parse error: {}", e)),
+                },
+            },
             Err(e) => CatalogStatus {
                 loaded: false,
                 path: "embedded://catalog.json".to_string(),
                 example_count: 0,
                 summary: "❌ Embedded catalog not available".to_string(),
                 error: Some(format!("Embedded catalog error: {}", e)),
-            }
+            },
         }
     }
 
     fn get_catalog_status_content(&self) -> Result<String> {
         let status = self.get_catalog_status();
-        
-        Ok(format!(r#"# 📊 Catalog Status
+
+        Ok(format!(
+            r#"# 📊 Catalog Status
 
 ## Current Status: {}
 
@@ -2877,14 +3033,19 @@ If your language isn't listed:
 {}
 
 "#,
-            if status.loaded { "✅ LOADED" } else { "❌ FAILED" },
+            if status.loaded {
+                "✅ LOADED"
+            } else {
+                "❌ FAILED"
+            },
             status.path,
             status.example_count,
             status.summary,
             if let Some(error) = &status.error {
                 format!("**Error Details**: {}", error)
             } else {
-                "The catalog loaded successfully and all example resources are available.".to_string()
+                "The catalog loaded successfully and all example resources are available."
+                    .to_string()
             },
             if status.loaded {
                 format!(
@@ -2922,40 +3083,62 @@ If your language isn't listed:
     async fn similarity_search_tool(&self, args: Value) -> Result<String> {
         let pattern = args["pattern"].as_str().ok_or(anyhow!("Missing pattern"))?;
         let limit = args["limit"].as_u64().unwrap_or(10) as usize;
-        
-        let results = self.with_search_engine(|engine| {
-            engine.similarity_search(pattern, limit)
-        })?;
+
+        let results = self.with_search_engine(|engine| engine.similarity_search(pattern, limit))?;
 
         if results.is_empty() {
-            return Ok("No similar patterns found. Try using simpler or more general terms.".to_string());
+            return Ok(
+                "No similar patterns found. Try using simpler or more general terms.".to_string(),
+            );
         }
 
         let mut output = format!("Found {} similar patterns:\n\n", results.len());
-        
+
         for (i, result) in results.iter().enumerate() {
-            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
+            output.push_str(&format!(
+                "{}. {} ({})\n",
+                i + 1,
+                result.title,
+                result.language
+            ));
             output.push_str(&format!("   Similarity: {:.2}\n", result.score));
             output.push_str(&format!("   Description: {}\n", result.description));
             if !result.yaml_content.is_empty() {
-                output.push_str(&format!("   YAML Rule: {}...\n", 
-                    result.yaml_content.lines().next().unwrap_or("").chars().take(50).collect::<String>()));
+                output.push_str(&format!(
+                    "   YAML Rule: {}...\n",
+                    result
+                        .yaml_content
+                        .lines()
+                        .next()
+                        .unwrap_or("")
+                        .chars()
+                        .take(50)
+                        .collect::<String>()
+                ));
             }
             output.push_str("\n");
         }
 
-        output.push_str("⚠️ Note: Similarity is based on text matching - review each example for relevance.");
+        output.push_str(
+            "⚠️ Note: Similarity is based on text matching - review each example for relevance.",
+        );
         Ok(output)
     }
 
     async fn suggest_examples(&self, args: Value) -> Result<String> {
-        let problem_description = args["description"].as_str().ok_or(anyhow!("Missing description"))?;
+        let problem_description = args["description"]
+            .as_str()
+            .ok_or(anyhow!("Missing description"))?;
         let language = args["language"].as_str().unwrap_or("any");
         let limit = args["limit"].as_u64().unwrap_or(5) as usize;
-        
+
         // Use similarity search with the problem description
         let results = self.with_search_engine(|engine| {
-            let lang_filter = if language == "any" { None } else { Some(language) };
+            let lang_filter = if language == "any" {
+                None
+            } else {
+                Some(language)
+            };
             // First try regular search with the description
             let search_results = engine.search(problem_description, lang_filter, limit);
             if search_results.as_ref().map_or(true, |r| r.is_empty()) {
@@ -2970,10 +3153,18 @@ If your language isn't listed:
             return Ok("No relevant examples found for your problem description. Try describing your problem with different terms or be more specific about what you're trying to achieve.".to_string());
         }
 
-        let mut output = format!("Based on your problem description, here are {} potentially relevant examples:\n\n", results.len());
-        
+        let mut output = format!(
+            "Based on your problem description, here are {} potentially relevant examples:\n\n",
+            results.len()
+        );
+
         for (i, result) in results.iter().enumerate() {
-            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
+            output.push_str(&format!(
+                "{}. {} ({})\n",
+                i + 1,
+                result.title,
+                result.language
+            ));
             output.push_str(&format!("   Relevance: {:.2}\n", result.score));
             output.push_str(&format!("   What it does: {}\n", result.description));
             if result.has_fix {
@@ -2987,7 +3178,7 @@ If your language isn't listed:
 
         output.push_str("💡 These examples might help with your problem, but you'll likely need to adapt them to your specific use case. ");
         output.push_str("Don't assume they'll work exactly as-is for your requirements.");
-        
+
         Ok(output)
     }
 }
@@ -3007,7 +3198,8 @@ mod tests {
     use std::sync::Arc;
 
     fn create_test_tools() -> AstGrepTools {
-        let binary_manager = Arc::new(BinaryManager::new().expect("Failed to create binary manager"));
+        let binary_manager =
+            Arc::new(BinaryManager::new().expect("Failed to create binary manager"));
         AstGrepTools::new(binary_manager)
     }
 
@@ -3015,36 +3207,63 @@ mod tests {
     fn test_discovery_resources_included() {
         let tools = create_test_tools();
         let resources = tools.list_resources();
-        
+
         // Check that discovery resources are included
-        let discovery_guide = resources.iter().find(|r| r.raw.uri == "ast-grep://discover");
-        assert!(discovery_guide.is_some(), "Discovery guide should be included");
-        
-        let languages_list = resources.iter().find(|r| r.raw.uri == "ast-grep://languages");
-        assert!(languages_list.is_some(), "Languages list should be included");
-        
-        let catalog_status = resources.iter().find(|r| r.raw.uri == "ast-grep://catalog-status");
-        assert!(catalog_status.is_some(), "Catalog status should be included");
+        let discovery_guide = resources
+            .iter()
+            .find(|r| r.raw.uri == "ast-grep://discover");
+        assert!(
+            discovery_guide.is_some(),
+            "Discovery guide should be included"
+        );
+
+        let languages_list = resources
+            .iter()
+            .find(|r| r.raw.uri == "ast-grep://languages");
+        assert!(
+            languages_list.is_some(),
+            "Languages list should be included"
+        );
+
+        let catalog_status = resources
+            .iter()
+            .find(|r| r.raw.uri == "ast-grep://catalog-status");
+        assert!(
+            catalog_status.is_some(),
+            "Catalog status should be included"
+        );
     }
 
     #[test]
     fn test_popular_language_examples_included() {
         let tools = create_test_tools();
         let resources = tools.list_resources();
-        
+
         // Check that popular language examples have direct access
-        let js_examples = resources.iter().find(|r| r.raw.uri == "ast-grep://examples/javascript");
-        assert!(js_examples.is_some(), "JavaScript examples should be directly accessible");
-        
-        let python_examples = resources.iter().find(|r| r.raw.uri == "ast-grep://examples/python");
-        assert!(python_examples.is_some(), "Python examples should be directly accessible");
+        let js_examples = resources
+            .iter()
+            .find(|r| r.raw.uri == "ast-grep://examples/javascript");
+        assert!(
+            js_examples.is_some(),
+            "JavaScript examples should be directly accessible"
+        );
+
+        let python_examples = resources
+            .iter()
+            .find(|r| r.raw.uri == "ast-grep://examples/python");
+        assert!(
+            python_examples.is_some(),
+            "Python examples should be directly accessible"
+        );
     }
 
     #[test]
     fn test_discovery_guide_content() {
         let tools = create_test_tools();
-        let content = tools.get_discovery_guide().expect("Should generate discovery guide");
-        
+        let content = tools
+            .get_discovery_guide()
+            .expect("Should generate discovery guide");
+
         assert!(content.contains("🔍 AST-Grep MCP Resource Discovery Guide"));
         assert!(content.contains("Quick Start Resources"));
         assert!(content.contains("ast-grep://languages"));
@@ -3054,8 +3273,10 @@ mod tests {
     #[test]
     fn test_languages_content() {
         let tools = create_test_tools();
-        let content = tools.get_available_languages().expect("Should generate languages list");
-        
+        let content = tools
+            .get_available_languages()
+            .expect("Should generate languages list");
+
         assert!(content.contains("📚 Supported Programming Languages"));
         assert!(content.contains("JavaScript"));
         assert!(content.contains("Python"));
@@ -3066,35 +3287,53 @@ mod tests {
     fn test_error_handling_improvements() {
         let tools = create_test_tools();
         let resources = tools.list_resources();
-        
+
         // Should have either catalog resources OR error resources, not empty list
-        let has_catalog = resources.iter().any(|r| r.raw.uri.starts_with("ast-grep://catalog/"));
-        let has_catalog_error = resources.iter().any(|r| r.raw.uri == "ast-grep://catalog-error");
-        let has_nav_error = resources.iter().any(|r| r.raw.uri == "ast-grep://navigation-error");
-        
+        let has_catalog = resources
+            .iter()
+            .any(|r| r.raw.uri.starts_with("ast-grep://catalog/"));
+        let has_catalog_error = resources
+            .iter()
+            .any(|r| r.raw.uri == "ast-grep://catalog-error");
+        let _has_nav_error = resources
+            .iter()
+            .any(|r| r.raw.uri == "ast-grep://navigation-error");
+
         // Should have either working catalog OR visible error information
-        assert!(has_catalog || has_catalog_error, "Should show catalog resources or catalog error");
+        assert!(
+            has_catalog || has_catalog_error,
+            "Should show catalog resources or catalog error"
+        );
     }
 
     #[test]
     fn test_resource_count_increased() {
         let tools = create_test_tools();
         let resources = tools.list_resources();
-        
+
         // Before improvements, there were ~11 static resources
         // After improvements, we should have significantly more
-        assert!(resources.len() >= 15, "Should have at least 15 resources (was ~11 before improvements)");
-        
+        assert!(
+            resources.len() >= 15,
+            "Should have at least 15 resources (was ~11 before improvements)"
+        );
+
         // Check for improved naming with emojis
-        let emoji_resources = resources.iter().filter(|r| {
-            r.raw.name.contains("🔍") || 
-            r.raw.name.contains("📚") || 
-            r.raw.name.contains("📊") ||
-            r.raw.name.contains("🔧") ||
-            r.raw.name.contains("📝")
-        }).count();
-        
-        assert!(emoji_resources > 0, "Should have resources with emoji names for better UX");
+        let emoji_resources = resources
+            .iter()
+            .filter(|r| {
+                r.raw.name.contains("🔍")
+                    || r.raw.name.contains("📚")
+                    || r.raw.name.contains("📊")
+                    || r.raw.name.contains("🔧")
+                    || r.raw.name.contains("📝")
+            })
+            .count();
+
+        assert!(
+            emoji_resources > 0,
+            "Should have resources with emoji names for better UX"
+        );
     }
 }
 
@@ -3108,7 +3347,9 @@ impl ToTitleCase for str {
         let mut chars = self.chars();
         match chars.next() {
             None => String::new(),
-            Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+            Some(first) => {
+                first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
+            }
         }
     }
 }

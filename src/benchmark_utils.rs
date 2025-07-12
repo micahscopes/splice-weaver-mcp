@@ -145,14 +145,12 @@ impl Default for BenchmarkConfiguration {
             description: "Comprehensive LLM performance evaluation".to_string(),
             iterations: 10,
             timeout_seconds: 30,
-            models: vec![
-                ModelConfig {
-                    name: "gpt-3.5-turbo".to_string(),
-                    endpoint: "http://localhost:1234/v1".to_string(),
-                    api_key: None,
-                    parameters: HashMap::new(),
-                },
-            ],
+            models: vec![ModelConfig {
+                name: "gpt-3.5-turbo".to_string(),
+                endpoint: "http://localhost:1234/v1".to_string(),
+                api_key: None,
+                parameters: HashMap::new(),
+            }],
             test_scenarios: create_default_scenarios(),
             statistical_config: StatisticalConfig {
                 confidence_level: 0.95,
@@ -233,33 +231,33 @@ impl BenchmarkRunner {
             results: Vec::new(),
             summary: None,
         };
-        
+
         Self { config, session }
     }
-    
+
     pub async fn run_full_benchmark(&mut self) -> Result<BenchmarkSummary> {
         let mut all_results = Vec::new();
-        
+
         for model in &self.config.models {
             println!("Running benchmark for model: {}", model.name);
             let model_result = self.run_model_benchmark(model).await?;
             all_results.push(model_result);
         }
-        
+
         self.session.results = all_results;
         self.session.end_time = Some(
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_secs()
+                .as_secs(),
         );
-        
+
         let summary = self.generate_summary();
         self.session.summary = Some(summary.clone());
-        
+
         Ok(summary)
     }
-    
+
     async fn run_model_benchmark(&self, model: &ModelConfig) -> Result<ModelBenchmarkResult> {
         let eval_config = EvaluationClientConfig {
             llm_endpoint: model.endpoint.clone(),
@@ -269,40 +267,40 @@ impl BenchmarkRunner {
             server_args: vec!["mock".to_string()],
             timeout_seconds: self.config.timeout_seconds,
         };
-        
+
         let mut client = EvaluationClient::new(eval_config);
         let mut scenario_results = Vec::new();
-        
+
         for scenario in &self.config.test_scenarios {
             println!("  Running scenario: {}", scenario.name);
             let scenario_result = self.run_scenario_benchmark(&mut client, scenario).await?;
             scenario_results.push(scenario_result);
         }
-        
+
         let overall_metrics = self.calculate_overall_metrics(&scenario_results);
-        
+
         Ok(ModelBenchmarkResult {
             model_name: model.name.clone(),
             scenario_results,
             overall_metrics,
         })
     }
-    
+
     async fn run_scenario_benchmark(
         &self,
         client: &mut EvaluationClient,
         scenario: &TestScenario,
     ) -> Result<ScenarioResult> {
         let mut evaluations = Vec::new();
-        
+
         for i in 0..self.config.iterations {
             client.reset_conversation();
-            
+
             // Add small delay to avoid overwhelming the API
             if i > 0 {
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             }
-            
+
             match client.evaluate_prompt(&scenario.prompt).await {
                 Ok(evaluation) => evaluations.push(evaluation),
                 Err(e) => {
@@ -325,44 +323,46 @@ impl BenchmarkRunner {
                 }
             }
         }
-        
+
         let metrics = self.calculate_scenario_metrics(&evaluations);
-        
+
         Ok(ScenarioResult {
             scenario_name: scenario.name.clone(),
             evaluations,
             metrics,
         })
     }
-    
+
     fn calculate_scenario_metrics(&self, evaluations: &[EvaluationResult]) -> ScenarioMetrics {
         let success_count = evaluations.iter().filter(|e| e.success).count();
         let success_rate = success_count as f64 / evaluations.len() as f64;
-        
+
         let durations: Vec<u64> = evaluations.iter().map(|e| e.duration_ms).collect();
         let avg_duration_ms = durations.iter().sum::<u64>() as f64 / durations.len() as f64;
-        
-        let variance = durations.iter()
+
+        let variance = durations
+            .iter()
             .map(|d| (*d as f64 - avg_duration_ms).powi(2))
-            .sum::<f64>() / durations.len() as f64;
+            .sum::<f64>()
+            / durations.len() as f64;
         let std_deviation_ms = variance.sqrt();
-        
+
         let min_duration_ms = *durations.iter().min().unwrap_or(&0);
         let max_duration_ms = *durations.iter().max().unwrap_or(&0);
-        
+
         let mut sorted_durations = durations.clone();
         sorted_durations.sort_unstable();
         let p95_duration_ms = Self::percentile(&sorted_durations, 0.95);
         let p99_duration_ms = Self::percentile(&sorted_durations, 0.99);
-        
+
         let total_tool_calls: usize = evaluations.iter().map(|e| e.tool_calls_made).sum();
         let tool_calls_per_request = total_tool_calls as f64 / evaluations.len() as f64;
-        
+
         let error_count = evaluations.iter().filter(|e| !e.success).count();
         let error_rate = error_count as f64 / evaluations.len() as f64;
-        
+
         let consistency_score = self.calculate_consistency_score(evaluations);
-        
+
         ScenarioMetrics {
             success_rate,
             avg_duration_ms,
@@ -376,53 +376,62 @@ impl BenchmarkRunner {
             consistency_score,
         }
     }
-    
+
     fn percentile(sorted_data: &[u64], percentile: f64) -> f64 {
         let index = (percentile * (sorted_data.len() - 1) as f64).round() as usize;
         sorted_data.get(index).copied().unwrap_or(0) as f64
     }
-    
+
     fn calculate_consistency_score(&self, evaluations: &[EvaluationResult]) -> f64 {
         // Calculate consistency based on response similarity and tool usage patterns
         let _responses: Vec<&str> = evaluations.iter().map(|e| e.response.as_str()).collect();
         let tool_counts: Vec<usize> = evaluations.iter().map(|e| e.tool_calls_made).collect();
-        
+
         // Simple consistency metric based on tool usage variance
         if tool_counts.is_empty() {
             return 0.0;
         }
-        
+
         let avg_tools = tool_counts.iter().sum::<usize>() as f64 / tool_counts.len() as f64;
-        let tool_variance = tool_counts.iter()
+        let tool_variance = tool_counts
+            .iter()
             .map(|&c| (c as f64 - avg_tools).powi(2))
-            .sum::<f64>() / tool_counts.len() as f64;
-        
+            .sum::<f64>()
+            / tool_counts.len() as f64;
+
         // Higher consistency score for lower variance
         1.0 / (1.0 + tool_variance)
     }
-    
+
     fn calculate_overall_metrics(&self, scenario_results: &[ScenarioResult]) -> OverallMetrics {
-        let total_evaluations: usize = scenario_results.iter()
-            .map(|sr| sr.evaluations.len())
-            .sum();
-        
-        let total_errors: usize = scenario_results.iter()
+        let total_evaluations: usize = scenario_results.iter().map(|sr| sr.evaluations.len()).sum();
+
+        let total_errors: usize = scenario_results
+            .iter()
             .map(|sr| sr.evaluations.iter().filter(|e| !e.success).count())
             .sum();
-        
-        let total_duration_ms: u64 = scenario_results.iter()
+
+        let total_duration_ms: u64 = scenario_results
+            .iter()
             .map(|sr| sr.evaluations.iter().map(|e| e.duration_ms).sum::<u64>())
             .sum();
-        
-        let weighted_success_rate = scenario_results.iter()
+
+        let weighted_success_rate = scenario_results
+            .iter()
             .zip(&self.config.test_scenarios)
             .map(|(result, scenario)| result.metrics.success_rate * scenario.weight)
-            .sum::<f64>() / self.config.test_scenarios.iter().map(|s| s.weight).sum::<f64>();
-        
+            .sum::<f64>()
+            / self
+                .config
+                .test_scenarios
+                .iter()
+                .map(|s| s.weight)
+                .sum::<f64>();
+
         let avg_scenario_duration_ms = total_duration_ms as f64 / scenario_results.len() as f64;
-        
+
         let reliability_score = 1.0 - (total_errors as f64 / total_evaluations as f64);
-        
+
         OverallMetrics {
             weighted_success_rate,
             total_duration_ms,
@@ -432,18 +441,21 @@ impl BenchmarkRunner {
             reliability_score,
         }
     }
-    
+
     fn generate_summary(&self) -> BenchmarkSummary {
         let total_duration_ms = self.session.end_time.unwrap_or(0) - self.session.start_time;
-        let total_evaluations = self.session.results.iter()
+        let total_evaluations = self
+            .session
+            .results
+            .iter()
             .map(|r| r.overall_metrics.total_evaluations)
             .sum();
-        
+
         let model_rankings = self.generate_model_rankings();
         let scenario_difficulty = self.generate_scenario_difficulty();
         let performance_trends = self.generate_performance_trends();
         let recommendations = self.generate_recommendations();
-        
+
         BenchmarkSummary {
             total_duration_ms: total_duration_ms * 1000, // Convert to milliseconds
             total_evaluations,
@@ -453,14 +465,18 @@ impl BenchmarkRunner {
             recommendations,
         }
     }
-    
+
     fn generate_model_rankings(&self) -> Vec<ModelRanking> {
-        let mut rankings: Vec<ModelRanking> = self.session.results.iter()
+        let mut rankings: Vec<ModelRanking> = self
+            .session
+            .results
+            .iter()
             .map(|result| {
-                let overall_score = result.overall_metrics.weighted_success_rate * 0.5 +
-                                   result.overall_metrics.reliability_score * 0.3 +
-                                   (1.0 / (1.0 + result.overall_metrics.avg_scenario_duration_ms / 1000.0)) * 0.2;
-                
+                let overall_score = result.overall_metrics.weighted_success_rate * 0.5
+                    + result.overall_metrics.reliability_score * 0.3
+                    + (1.0 / (1.0 + result.overall_metrics.avg_scenario_duration_ms / 1000.0))
+                        * 0.2;
+
                 ModelRanking {
                     model_name: result.model_name.clone(),
                     overall_score,
@@ -471,41 +487,58 @@ impl BenchmarkRunner {
                 }
             })
             .collect();
-        
+
         rankings.sort_by(|a, b| b.overall_score.partial_cmp(&a.overall_score).unwrap());
-        
+
         for (i, ranking) in rankings.iter_mut().enumerate() {
             ranking.rank = i + 1;
         }
-        
+
         rankings
     }
-    
+
     fn generate_scenario_difficulty(&self) -> Vec<ScenarioDifficulty> {
-        self.config.test_scenarios.iter()
+        self.config
+            .test_scenarios
+            .iter()
             .map(|scenario| {
-                let scenario_results: Vec<_> = self.session.results.iter()
-                    .filter_map(|r| r.scenario_results.iter().find(|sr| sr.scenario_name == scenario.name))
+                let scenario_results: Vec<_> = self
+                    .session
+                    .results
+                    .iter()
+                    .filter_map(|r| {
+                        r.scenario_results
+                            .iter()
+                            .find(|sr| sr.scenario_name == scenario.name)
+                    })
                     .collect();
-                
-                let avg_success_rate = scenario_results.iter()
+
+                let avg_success_rate = scenario_results
+                    .iter()
                     .map(|sr| sr.metrics.success_rate)
-                    .sum::<f64>() / scenario_results.len() as f64;
-                
-                let avg_duration_ms = scenario_results.iter()
+                    .sum::<f64>()
+                    / scenario_results.len() as f64;
+
+                let avg_duration_ms = scenario_results
+                    .iter()
                     .map(|sr| sr.metrics.avg_duration_ms)
-                    .sum::<f64>() / scenario_results.len() as f64;
-                
-                let success_rates: Vec<f64> = scenario_results.iter()
+                    .sum::<f64>()
+                    / scenario_results.len() as f64;
+
+                let success_rates: Vec<f64> = scenario_results
+                    .iter()
                     .map(|sr| sr.metrics.success_rate)
                     .collect();
-                
-                let variance = success_rates.iter()
+
+                let variance = success_rates
+                    .iter()
                     .map(|&sr| (sr - avg_success_rate).powi(2))
-                    .sum::<f64>() / success_rates.len() as f64;
-                
-                let difficulty_score = (1.0 - avg_success_rate) + (avg_duration_ms / 10000.0) + variance;
-                
+                    .sum::<f64>()
+                    / success_rates.len() as f64;
+
+                let difficulty_score =
+                    (1.0 - avg_success_rate) + (avg_duration_ms / 10000.0) + variance;
+
                 ScenarioDifficulty {
                     scenario_name: scenario.name.clone(),
                     difficulty_score,
@@ -516,7 +549,7 @@ impl BenchmarkRunner {
             })
             .collect()
     }
-    
+
     fn generate_performance_trends(&self) -> Vec<PerformanceTrend> {
         // For now, return placeholder trends
         // In a real implementation, this would analyze historical data
@@ -535,10 +568,10 @@ impl BenchmarkRunner {
             },
         ]
     }
-    
+
     fn generate_recommendations(&self) -> Vec<String> {
         let mut recommendations = Vec::new();
-        
+
         // Analyze results and generate recommendations
         for result in &self.session.results {
             if result.overall_metrics.reliability_score < 0.8 {
@@ -547,7 +580,7 @@ impl BenchmarkRunner {
                             result.model_name, result.overall_metrics.reliability_score)
                 );
             }
-            
+
             if result.overall_metrics.avg_scenario_duration_ms > 5000.0 {
                 recommendations.push(
                     format!("Model '{}' has high average response time ({}ms). Consider optimizing prompts or using a faster model.",
@@ -555,43 +588,53 @@ impl BenchmarkRunner {
                 );
             }
         }
-        
+
         if recommendations.is_empty() {
             recommendations.push("All models performed within acceptable parameters.".to_string());
         }
-        
+
         recommendations
     }
-    
+
     pub fn save_results(&self, output_dir: &str) -> Result<()> {
         std::fs::create_dir_all(output_dir)?;
-        
+
         // Save detailed results as JSON
         let json_path = format!("{}/benchmark_results.json", output_dir);
         let json_data = serde_json::to_string_pretty(&self.session)?;
         std::fs::write(&json_path, json_data)?;
-        
+
         // Save summary as CSV
-        if self.config.export_config.formats.contains(&"csv".to_string()) {
+        if self
+            .config
+            .export_config
+            .formats
+            .contains(&"csv".to_string())
+        {
             self.save_csv_summary(output_dir)?;
         }
-        
+
         // Save HTML report
-        if self.config.export_config.formats.contains(&"html".to_string()) {
+        if self
+            .config
+            .export_config
+            .formats
+            .contains(&"html".to_string())
+        {
             self.save_html_report(output_dir)?;
         }
-        
+
         println!("Benchmark results saved to: {}", output_dir);
         Ok(())
     }
-    
+
     fn save_csv_summary(&self, output_dir: &str) -> Result<()> {
         let csv_path = format!("{}/benchmark_summary.csv", output_dir);
         let mut csv_content = String::new();
-        
+
         // Header
         csv_content.push_str("Model,Success Rate,Avg Duration (ms),Reliability Score,Rank\n");
-        
+
         // Data rows
         if let Some(summary) = &self.session.summary {
             for ranking in &summary.model_rankings {
@@ -605,23 +648,24 @@ impl BenchmarkRunner {
                 ));
             }
         }
-        
+
         std::fs::write(&csv_path, csv_content)?;
         Ok(())
     }
-    
+
     fn save_html_report(&self, output_dir: &str) -> Result<()> {
         let html_path = format!("{}/benchmark_report.html", output_dir);
         let html_content = self.generate_html_report();
         std::fs::write(&html_path, html_content)?;
         Ok(())
     }
-    
+
     fn generate_html_report(&self) -> String {
         let mut html = String::new();
-        
+
         html.push_str("<!DOCTYPE html>\n<html><head><title>LLM Benchmark Report</title>");
-        html.push_str("<style>
+        html.push_str(
+            "<style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             table { border-collapse: collapse; width: 100%; margin: 20px 0; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -630,23 +674,36 @@ impl BenchmarkRunner {
             .good { color: green; }
             .warning { color: orange; }
             .bad { color: red; }
-        </style></head><body>");
-        
+        </style></head><body>",
+        );
+
         html.push_str(&format!("<h1>LLM Benchmark Report</h1>"));
         html.push_str(&format!("<h2>Configuration: {}</h2>", self.config.name));
         html.push_str(&format!("<p>{}</p>", self.config.description));
-        
+
         if let Some(summary) = &self.session.summary {
             html.push_str("<h2>Summary</h2>");
-            html.push_str(&format!("<div class='metric'>Total Evaluations: {}</div>", summary.total_evaluations));
-            html.push_str(&format!("<div class='metric'>Total Duration: {:.2}s</div>", summary.total_duration_ms as f64 / 1000.0));
-            
+            html.push_str(&format!(
+                "<div class='metric'>Total Evaluations: {}</div>",
+                summary.total_evaluations
+            ));
+            html.push_str(&format!(
+                "<div class='metric'>Total Duration: {:.2}s</div>",
+                summary.total_duration_ms as f64 / 1000.0
+            ));
+
             html.push_str("<h2>Model Rankings</h2>");
             html.push_str("<table>");
             html.push_str("<tr><th>Rank</th><th>Model</th><th>Overall Score</th><th>Success Rate</th><th>Avg Duration (ms)</th><th>Reliability</th></tr>");
-            
+
             for ranking in &summary.model_rankings {
-                let class = if ranking.success_rate > 0.8 { "good" } else if ranking.success_rate > 0.6 { "warning" } else { "bad" };
+                let class = if ranking.success_rate > 0.8 {
+                    "good"
+                } else if ranking.success_rate > 0.6 {
+                    "warning"
+                } else {
+                    "bad"
+                };
                 html.push_str(&format!(
                     "<tr><td>{}</td><td>{}</td><td class='{}'>{:.3}</td><td class='{}'>{:.1}%</td><td>{:.1}</td><td class='{}'>{:.1}%</td></tr>",
                     ranking.rank,
@@ -661,7 +718,7 @@ impl BenchmarkRunner {
                 ));
             }
             html.push_str("</table>");
-            
+
             html.push_str("<h2>Recommendations</h2>");
             html.push_str("<ul>");
             for recommendation in &summary.recommendations {
@@ -669,7 +726,7 @@ impl BenchmarkRunner {
             }
             html.push_str("</ul>");
         }
-        
+
         html.push_str("</body></html>");
         html
     }

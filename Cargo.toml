@@ -40,7 +40,7 @@ plotters = "0.3"
 opt-level = 1
 
 [lib]
-name = "mcp_ast_grep"
+name = "splice_weaver_mcp"
 path = "src/lib.rs"
 
 [[bin]]

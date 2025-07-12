@@ -19,7 +19,7 @@ impl McpServerHandle {
     /// Start a new MCP server instance
     pub async fn start() -> Result<Self> {
         info!("Starting MCP server for testing");
-        
+
         let process = Command::new("cargo")
             .args(&["run", "--bin", "mcp-ast-grep"])
             .stdin(Stdio::piped())
@@ -60,16 +60,21 @@ impl McpServerHandle {
             }
         });
 
-        stdin.write_all(format!("{}\n", init_request).as_bytes()).await?;
+        stdin
+            .write_all(format!("{}\n", init_request).as_bytes())
+            .await?;
         stdin.flush().await?;
 
         let mut response_line = String::new();
         timeout(DEFAULT_TIMEOUT, reader.read_line(&mut response_line)).await??;
 
         let response: Value = serde_json::from_str(&response_line)?;
-        
+
         if response.get("error").is_some() {
-            return Err(anyhow::anyhow!("Server initialization failed: {}", response));
+            return Err(anyhow::anyhow!(
+                "Server initialization failed: {}",
+                response
+            ));
         }
 
         self.initialized = true;
@@ -108,11 +113,13 @@ impl McpServerHandle {
         });
 
         let response = self.send_request(request).await?;
-        
-        let result = response.get("result")
+
+        let result = response
+            .get("result")
             .ok_or_else(|| anyhow::anyhow!("No result in tools/list response"))?;
-        
-        let tools = result.get("tools")
+
+        let tools = result
+            .get("tools")
             .ok_or_else(|| anyhow::anyhow!("No tools in result"))?
             .as_array()
             .ok_or_else(|| anyhow::anyhow!("Tools is not an array"))?;
@@ -145,11 +152,13 @@ impl McpServerHandle {
         });
 
         let response = self.send_request(request).await?;
-        
-        let result = response.get("result")
+
+        let result = response
+            .get("result")
             .ok_or_else(|| anyhow::anyhow!("No result in resources/list response"))?;
-        
-        let resources = result.get("resources")
+
+        let resources = result
+            .get("resources")
             .ok_or_else(|| anyhow::anyhow!("No resources in result"))?
             .as_array()
             .ok_or_else(|| anyhow::anyhow!("Resources is not an array"))?;
@@ -181,11 +190,13 @@ impl McpServerHandle {
         });
 
         let response = self.send_request(request).await?;
-        
-        let result = response.get("result")
+
+        let result = response
+            .get("result")
             .ok_or_else(|| anyhow::anyhow!("No result in prompts/list response"))?;
-        
-        let prompts = result.get("prompts")
+
+        let prompts = result
+            .get("prompts")
             .ok_or_else(|| anyhow::anyhow!("No prompts in result"))?
             .as_array()
             .ok_or_else(|| anyhow::anyhow!("Prompts is not an array"))?;
@@ -211,12 +222,12 @@ impl TestFile {
     /// Create a new test file with the given content
     pub fn new(content: &str) -> Result<Self> {
         use std::io::Write;
-        
+
         let mut temp_file = tempfile::NamedTempFile::new()?;
         write!(temp_file, "{}", content)?;
-        
+
         let path = temp_file.path().to_string_lossy().to_string();
-        
+
         Ok(Self { temp_file, path })
     }
 
@@ -225,9 +236,9 @@ impl TestFile {
         let mut temp_file = tempfile::NamedTempFile::with_suffix(".js")?;
         use std::io::Write;
         write!(temp_file, "{}", content)?;
-        
+
         let path = temp_file.path().to_string_lossy().to_string();
-        
+
         Ok(Self { temp_file, path })
     }
 
@@ -236,9 +247,9 @@ impl TestFile {
         let mut temp_file = tempfile::NamedTempFile::with_suffix(".py")?;
         use std::io::Write;
         write!(temp_file, "{}", content)?;
-        
+
         let path = temp_file.path().to_string_lossy().to_string();
-        
+
         Ok(Self { temp_file, path })
     }
 
@@ -247,9 +258,9 @@ impl TestFile {
         let mut temp_file = tempfile::NamedTempFile::with_suffix(".rs")?;
         use std::io::Write;
         write!(temp_file, "{}", content)?;
-        
+
         let path = temp_file.path().to_string_lossy().to_string();
-        
+
         Ok(Self { temp_file, path })
     }
 }
@@ -335,13 +346,25 @@ pub mod assertions {
 
     /// Assert that a JSON-RPC response is successful
     pub fn assert_success(response: &Value) {
-        assert!(response.get("error").is_none(), "Response should not contain error: {}", response);
-        assert!(response.get("result").is_some(), "Response should contain result: {}", response);
+        assert!(
+            response.get("error").is_none(),
+            "Response should not contain error: {}",
+            response
+        );
+        assert!(
+            response.get("result").is_some(),
+            "Response should contain result: {}",
+            response
+        );
     }
 
     /// Assert that a JSON-RPC response contains an error
     pub fn assert_error(response: &Value) {
-        assert!(response.get("error").is_some(), "Response should contain error: {}", response);
+        assert!(
+            response.get("error").is_some(),
+            "Response should contain error: {}",
+            response
+        );
     }
 
     /// Assert that tools list contains expected tools
@@ -363,11 +386,13 @@ pub mod assertions {
 
     /// Assert that a tool has required schema properties
     pub fn assert_tool_schema(tool: &Value, required_props: &[&str]) {
-        let schema = tool.get("inputSchema")
+        let schema = tool
+            .get("inputSchema")
             .or_else(|| tool.get("input_schema"))
             .expect("Tool should have input schema");
-        
-        let properties = schema.get("properties")
+
+        let properties = schema
+            .get("properties")
             .expect("Schema should have properties")
             .as_object()
             .expect("Properties should be an object");
@@ -385,7 +410,7 @@ pub mod assertions {
 
 /// Test configuration helpers
 pub mod config {
-    use mcp_ast_grep::evaluation_client::EvaluationClientConfig;
+    use splice_weaver_mcp::evaluation_client::EvaluationClientConfig;
 
     /// Create a test configuration for evaluation client
     pub fn test_evaluation_config() -> EvaluationClientConfig {
@@ -406,7 +431,11 @@ pub mod config {
             llm_api_key: None,
             model_name: "test-model".to_string(),
             server_command: "cargo".to_string(),
-            server_args: vec!["run".to_string(), "--bin".to_string(), "mcp-ast-grep".to_string()],
+            server_args: vec![
+                "run".to_string(),
+                "--bin".to_string(),
+                "mcp-ast-grep".to_string(),
+            ],
             timeout_seconds: 10,
         }
     }

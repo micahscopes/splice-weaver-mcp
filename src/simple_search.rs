@@ -37,17 +37,18 @@ impl SimpleSearchEngine {
     pub fn new(catalog_path: &str) -> Result<Self> {
         let catalog_content = std::fs::read_to_string(catalog_path)
             .map_err(|e| anyhow!("Failed to read catalog at {}: {}", catalog_path, e))?;
-        
+
         Self::from_content(&catalog_content)
     }
-    
+
     pub fn from_content(catalog_content: &str) -> Result<Self> {
         let catalog: Value = serde_json::from_str(catalog_content)?;
-        let examples_json = catalog["examples"].as_array()
+        let examples_json = catalog["examples"]
+            .as_array()
             .ok_or_else(|| anyhow!("No examples found in catalog"))?;
 
         let mut examples = Vec::new();
-        
+
         for example in examples_json {
             let id = example["id"].as_str().unwrap_or("").to_string();
             let title = example["title"].as_str().unwrap_or("").to_string();
@@ -55,9 +56,13 @@ impl SimpleSearchEngine {
             let language = example["language"].as_str().unwrap_or("").to_string();
             let has_fix = example["has_fix"].as_bool().unwrap_or(false);
             let yaml_content = example["yaml_content"].as_str().unwrap_or("").to_string();
-            let playground_link = example["playground_link"].as_str().unwrap_or("").to_string();
-            
-            let features: Vec<String> = example["features"].as_array()
+            let playground_link = example["playground_link"]
+                .as_str()
+                .unwrap_or("")
+                .to_string();
+
+            let features: Vec<String> = example["features"]
+                .as_array()
                 .map(|arr| {
                     arr.iter()
                         .filter_map(|v| v.as_str())
@@ -67,8 +72,14 @@ impl SimpleSearchEngine {
                 .unwrap_or_default();
 
             // Create searchable content combining multiple fields
-            let content = format!("{} {} {} {} {}", 
-                title, description, yaml_content, features.join(" "), language);
+            let content = format!(
+                "{} {} {} {} {}",
+                title,
+                description,
+                yaml_content,
+                features.join(" "),
+                language
+            );
 
             examples.push(CatalogExample {
                 id,
@@ -86,10 +97,15 @@ impl SimpleSearchEngine {
         Ok(SimpleSearchEngine { examples })
     }
 
-    pub fn search(&self, query: &str, language_filter: Option<&str>, limit: usize) -> Result<Vec<SearchResult>> {
+    pub fn search(
+        &self,
+        query: &str,
+        language_filter: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<SearchResult>> {
         let normalized_query = query.nfc().collect::<String>().to_lowercase();
         let query_terms: Vec<&str> = normalized_query.split_whitespace().collect();
-        
+
         if query_terms.is_empty() {
             return Ok(Vec::new());
         }
@@ -137,7 +153,7 @@ impl SimpleSearchEngine {
     pub fn similarity_search(&self, example_text: &str, limit: usize) -> Result<Vec<SearchResult>> {
         let terms = extract_key_terms(example_text);
         let query = terms.join(" ");
-        
+
         self.search(&query, None, limit)
     }
 
@@ -145,7 +161,7 @@ impl SimpleSearchEngine {
         let content_lower = example.content.to_lowercase();
         let title_lower = example.title.to_lowercase();
         let description_lower = example.description.to_lowercase();
-        
+
         let mut score = 0.0;
 
         // Check for exact phrase matches (highest weight)
@@ -165,7 +181,7 @@ impl SimpleSearchEngine {
                 score += 5.0;
             }
 
-            // Description matches (medium weight)  
+            // Description matches (medium weight)
             if description_lower.contains(term) {
                 score += 3.0;
             }
@@ -189,9 +205,11 @@ impl SimpleSearchEngine {
         }
 
         // Bonus for examples with fixes
-        if example.has_fix && query_terms.iter().any(|&term| 
-            term.contains("fix") || term.contains("replace") || term.contains("rewrite")
-        ) {
+        if example.has_fix
+            && query_terms.iter().any(|&term| {
+                term.contains("fix") || term.contains("replace") || term.contains("rewrite")
+            })
+        {
             score += 1.0;
         }
 
@@ -205,9 +223,7 @@ fn extract_key_terms(text: &str) -> Vec<String> {
     let words: Vec<&str> = text
         .split_whitespace()
         .filter(|word| {
-            word.len() > 2 && 
-            !is_stop_word(word) &&
-            word.chars().any(|c| c.is_alphabetic())
+            word.len() > 2 && !is_stop_word(word) && word.chars().any(|c| c.is_alphabetic())
         })
         .collect();
 
@@ -222,24 +238,74 @@ fn extract_key_terms(text: &str) -> Vec<String> {
         .into_iter()
         .map(|(word, count)| (word.to_string(), count))
         .collect();
-    
+
     terms.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
-    
+
     // Take top terms, limit to reasonable number
-    terms.into_iter()
-        .take(10)
-        .map(|(term, _)| term)
-        .collect()
+    terms.into_iter().take(10).map(|(term, _)| term).collect()
 }
 
 fn is_stop_word(word: &str) -> bool {
-    matches!(word, 
-        "the" | "and" | "or" | "but" | "in" | "on" | "at" | "to" | "for" | 
-        "of" | "with" | "by" | "is" | "are" | "was" | "were" | "be" | "been" |
-        "have" | "has" | "had" | "do" | "does" | "did" | "will" | "would" |
-        "should" | "could" | "can" | "may" | "might" | "must" | "shall" |
-        "this" | "that" | "these" | "those" | "a" | "an" | "as" | "if" |
-        "then" | "else" | "when" | "where" | "why" | "how" | "what" | "which" |
-        "who" | "whom" | "whose" | "i" | "you" | "he" | "she" | "it" | "we" | "they"
+    matches!(
+        word,
+        "the"
+            | "and"
+            | "or"
+            | "but"
+            | "in"
+            | "on"
+            | "at"
+            | "to"
+            | "for"
+            | "of"
+            | "with"
+            | "by"
+            | "is"
+            | "are"
+            | "was"
+            | "were"
+            | "be"
+            | "been"
+            | "have"
+            | "has"
+            | "had"
+            | "do"
+            | "does"
+            | "did"
+            | "will"
+            | "would"
+            | "should"
+            | "could"
+            | "can"
+            | "may"
+            | "might"
+            | "must"
+            | "shall"
+            | "this"
+            | "that"
+            | "these"
+            | "those"
+            | "a"
+            | "an"
+            | "as"
+            | "if"
+            | "then"
+            | "else"
+            | "when"
+            | "where"
+            | "why"
+            | "how"
+            | "what"
+            | "which"
+            | "who"
+            | "whom"
+            | "whose"
+            | "i"
+            | "you"
+            | "he"
+            | "she"
+            | "it"
+            | "we"
+            | "they"
     )
 }

@@ -1,10 +1,10 @@
 use anyhow::Result;
 use clap::{Arg, Command};
-use mcp_ast_grep::benchmark_utils::{
-    BenchmarkConfiguration, BenchmarkRunner, load_benchmark_config, save_benchmark_config,
+use splice_weaver_mcp::benchmark_utils::{
+    load_benchmark_config, save_benchmark_config, BenchmarkConfiguration, BenchmarkRunner,
 };
 use std::path::Path;
-use tracing::{info, error};
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -97,7 +97,9 @@ async fn main() -> Result<()> {
 
     if let Some(scenario_names) = matches.get_many::<String>("scenario") {
         let scenario_names: Vec<String> = scenario_names.cloned().collect();
-        config.test_scenarios.retain(|s| scenario_names.contains(&s.name));
+        config
+            .test_scenarios
+            .retain(|s| scenario_names.contains(&s.name));
         info!("Filtering to scenarios: {:?}", scenario_names);
     }
 
@@ -114,16 +116,19 @@ async fn main() -> Result<()> {
 
     info!("Starting benchmark suite: {}", config.name);
     info!("Running {} iterations per scenario", config.iterations);
-    info!("Testing {} models against {} scenarios", 
-          config.models.len(), config.test_scenarios.len());
+    info!(
+        "Testing {} models against {} scenarios",
+        config.models.len(),
+        config.test_scenarios.len()
+    );
 
     let mut runner = BenchmarkRunner::new(config);
-    
+
     match runner.run_full_benchmark().await {
         Ok(summary) => {
             info!("Benchmark completed successfully!");
             print_summary(&summary);
-            
+
             runner.save_results(output_dir)?;
             info!("Results saved to: {}", output_dir);
         }
@@ -152,7 +157,10 @@ fn list_scenarios(config_path: &str) -> Result<()> {
     };
 
     println!("Available test scenarios:");
-    println!("{:<25} {:<20} {:<10} {}", "Name", "Category", "Weight", "Description");
+    println!(
+        "{:<25} {:<20} {:<10} {}",
+        "Name", "Category", "Weight", "Description"
+    );
     println!("{}", "-".repeat(80));
 
     for scenario in &config.test_scenarios {
@@ -161,12 +169,11 @@ fn list_scenarios(config_path: &str) -> Result<()> {
         } else {
             scenario.prompt.clone()
         };
-        
-        println!("{:<25} {:<20} {:<10.1} {}", 
-                 scenario.name, 
-                 scenario.category, 
-                 scenario.weight, 
-                 description);
+
+        println!(
+            "{:<25} {:<20} {:<10.1} {}",
+            scenario.name, scenario.category, scenario.weight, description
+        );
     }
 
     Ok(())
@@ -174,65 +181,92 @@ fn list_scenarios(config_path: &str) -> Result<()> {
 
 fn validate_configuration(config: &BenchmarkConfiguration) -> Result<()> {
     println!("Validating benchmark configuration...");
-    
+
     // Check models
     if config.models.is_empty() {
         return Err(anyhow::anyhow!("No models configured"));
     }
-    
+
     for model in &config.models {
         println!("Model: {} - Endpoint: {}", model.name, model.endpoint);
-        
+
         // Validate endpoint format
         if !model.endpoint.starts_with("http://") && !model.endpoint.starts_with("https://") {
-            return Err(anyhow::anyhow!("Invalid endpoint format for model {}: {}", 
-                                     model.name, model.endpoint));
+            return Err(anyhow::anyhow!(
+                "Invalid endpoint format for model {}: {}",
+                model.name,
+                model.endpoint
+            ));
         }
     }
-    
+
     // Check scenarios
     if config.test_scenarios.is_empty() {
         return Err(anyhow::anyhow!("No test scenarios configured"));
     }
-    
+
     for scenario in &config.test_scenarios {
-        println!("Scenario: {} - Category: {}", scenario.name, scenario.category);
-        
+        println!(
+            "Scenario: {} - Category: {}",
+            scenario.name, scenario.category
+        );
+
         if scenario.prompt.is_empty() {
-            return Err(anyhow::anyhow!("Empty prompt for scenario: {}", scenario.name));
+            return Err(anyhow::anyhow!(
+                "Empty prompt for scenario: {}",
+                scenario.name
+            ));
         }
-        
+
         if scenario.weight <= 0.0 {
-            return Err(anyhow::anyhow!("Invalid weight for scenario {}: {}", 
-                                     scenario.name, scenario.weight));
+            return Err(anyhow::anyhow!(
+                "Invalid weight for scenario {}: {}",
+                scenario.name,
+                scenario.weight
+            ));
         }
     }
-    
+
     // Check statistical configuration
-    if config.statistical_config.confidence_level <= 0.0 || 
-       config.statistical_config.confidence_level >= 1.0 {
-        return Err(anyhow::anyhow!("Invalid confidence level: {}", 
-                                 config.statistical_config.confidence_level));
+    if config.statistical_config.confidence_level <= 0.0
+        || config.statistical_config.confidence_level >= 1.0
+    {
+        return Err(anyhow::anyhow!(
+            "Invalid confidence level: {}",
+            config.statistical_config.confidence_level
+        ));
     }
-    
+
     if config.iterations < config.statistical_config.min_sample_size {
-        return Err(anyhow::anyhow!("Iterations ({}) less than minimum sample size ({})", 
-                                 config.iterations, config.statistical_config.min_sample_size));
+        return Err(anyhow::anyhow!(
+            "Iterations ({}) less than minimum sample size ({})",
+            config.iterations,
+            config.statistical_config.min_sample_size
+        ));
     }
-    
+
     println!("✅ Configuration validation passed!");
-    println!("Total test combinations: {}", config.models.len() * config.test_scenarios.len());
-    println!("Total evaluations: {}", config.models.len() * config.test_scenarios.len() * config.iterations);
-    
+    println!(
+        "Total test combinations: {}",
+        config.models.len() * config.test_scenarios.len()
+    );
+    println!(
+        "Total evaluations: {}",
+        config.models.len() * config.test_scenarios.len() * config.iterations
+    );
+
     Ok(())
 }
 
-fn print_summary(summary: &mcp_ast_grep::benchmark_utils::BenchmarkSummary) {
+fn print_summary(summary: &splice_weaver_mcp::benchmark_utils::BenchmarkSummary) {
     println!("\n🎯 Benchmark Summary");
     println!("==================");
     println!("Total Evaluations: {}", summary.total_evaluations);
-    println!("Total Duration: {:.2}s", summary.total_duration_ms as f64 / 1000.0);
-    
+    println!(
+        "Total Duration: {:.2}s",
+        summary.total_duration_ms as f64 / 1000.0
+    );
+
     println!("\n🏆 Model Rankings:");
     for ranking in &summary.model_rankings {
         let score_emoji = if ranking.overall_score > 0.8 {
@@ -242,16 +276,18 @@ fn print_summary(summary: &mcp_ast_grep::benchmark_utils::BenchmarkSummary) {
         } else {
             "🔴"
         };
-        
-        println!("{} {}. {} - Score: {:.3}, Success: {:.1}%, Avg Time: {:.1}ms",
-                 score_emoji,
-                 ranking.rank,
-                 ranking.model_name,
-                 ranking.overall_score,
-                 ranking.success_rate * 100.0,
-                 ranking.avg_duration_ms);
+
+        println!(
+            "{} {}. {} - Score: {:.3}, Success: {:.1}%, Avg Time: {:.1}ms",
+            score_emoji,
+            ranking.rank,
+            ranking.model_name,
+            ranking.overall_score,
+            ranking.success_rate * 100.0,
+            ranking.avg_duration_ms
+        );
     }
-    
+
     println!("\n📊 Scenario Difficulty:");
     for difficulty in &summary.scenario_difficulty {
         let difficulty_emoji = if difficulty.difficulty_score < 0.3 {
@@ -261,15 +297,17 @@ fn print_summary(summary: &mcp_ast_grep::benchmark_utils::BenchmarkSummary) {
         } else {
             "🔴"
         };
-        
-        println!("{} {} - Difficulty: {:.2}, Success: {:.1}%, Avg Time: {:.1}ms",
-                 difficulty_emoji,
-                 difficulty.scenario_name,
-                 difficulty.difficulty_score,
-                 difficulty.avg_success_rate * 100.0,
-                 difficulty.avg_duration_ms);
+
+        println!(
+            "{} {} - Difficulty: {:.2}, Success: {:.1}%, Avg Time: {:.1}ms",
+            difficulty_emoji,
+            difficulty.scenario_name,
+            difficulty.difficulty_score,
+            difficulty.avg_success_rate * 100.0,
+            difficulty.avg_duration_ms
+        );
     }
-    
+
     println!("\n💡 Recommendations:");
     for recommendation in &summary.recommendations {
         println!("  • {}", recommendation);

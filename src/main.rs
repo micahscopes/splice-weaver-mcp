@@ -14,13 +14,17 @@ use binary_manager::BinaryManager;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    // Configure tracing to output to stderr instead of stdout
+    // This is crucial for MCP servers as stdout is used for JSON-RPC communication
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .init();
 
     info!("Starting MCP ast-grep server");
 
     let handler = AstGrepServer::new();
     info!("Handler created successfully");
-    
+
     let transport = rmcp::transport::io::stdio();
     info!("Transport created, serving...");
 
@@ -48,7 +52,7 @@ impl AstGrepServer {
         let binary_manager =
             Arc::new(BinaryManager::new().expect("Failed to initialize binary manager"));
         let tools = Arc::new(AstGrepTools::new(binary_manager));
-        
+
         // Set a default root to the current directory
         if let Ok(current_dir) = std::env::current_dir() {
             let root = Root {
@@ -57,7 +61,7 @@ impl AstGrepServer {
             };
             tools.set_roots(vec![root]);
         }
-        
+
         Self { tools }
     }
 }
@@ -81,7 +85,6 @@ impl ServerHandler for AstGrepServer {
             ),
         }
     }
-
 
     async fn list_tools(
         &self,

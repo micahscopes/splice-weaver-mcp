@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Arg, Command};
-use mcp_ast_grep::evaluation_client::{
+use splice_weaver_mcp::evaluation_client::{
     create_default_test_cases, EvaluationClient, EvaluationClientConfig, EvaluationSuite,
 };
 use tracing::{error, info};
@@ -84,7 +84,10 @@ async fn main() -> Result<()> {
     info!("Starting Rust MCP Evaluation Client");
     info!("LLM Endpoint: {}", config.llm_endpoint);
     info!("Model: {}", config.model_name);
-    info!("Server Command: {} {:?}", config.server_command, config.server_args);
+    info!(
+        "Server Command: {} {:?}",
+        config.server_command, config.server_args
+    );
 
     if matches.get_flag("run-tests") {
         run_test_suite(config).await?;
@@ -97,7 +100,10 @@ async fn main() -> Result<()> {
         println!("Examples:");
         println!("  {} --run-tests", env!("CARGO_PKG_NAME"));
         println!("  {} --interactive", env!("CARGO_PKG_NAME"));
-        println!("  {} --prompt \"Find all functions in this code: function test() {{}}\"", env!("CARGO_PKG_NAME"));
+        println!(
+            "  {} --prompt \"Find all functions in this code: function test() {{}}\"",
+            env!("CARGO_PKG_NAME")
+        );
     }
 
     Ok(())
@@ -105,16 +111,16 @@ async fn main() -> Result<()> {
 
 async fn run_test_suite(config: EvaluationClientConfig) -> Result<()> {
     info!("Running built-in test suite");
-    
+
     let mut suite = EvaluationSuite::new(config);
     suite.initialize().await?;
-    
+
     for test_case in create_default_test_cases() {
         suite.add_test_case(test_case);
     }
-    
+
     let results = suite.run_evaluations().await?;
-    
+
     println!("\n=== Evaluation Results ===");
     for (test_case, result) in results {
         let success = (test_case.success_criteria)(&result);
@@ -124,60 +130,60 @@ async fn run_test_suite(config: EvaluationClientConfig) -> Result<()> {
         println!("Tool calls: {}", result.tool_calls_made);
         println!("Response: {}\n", result.response);
     }
-    
+
     Ok(())
 }
 
 async fn run_single_prompt(config: EvaluationClientConfig, prompt: &str) -> Result<()> {
     info!("Evaluating single prompt");
-    
+
     let mut client = EvaluationClient::new(config);
     client.connect_to_mcp_server().await?;
-    
+
     let result = client.evaluate_prompt(prompt).await?;
-    
+
     println!("Prompt: {}", prompt);
     println!("Response: {}", result.response);
     println!("Duration: {}ms", result.duration_ms);
     println!("Tool calls made: {}", result.tool_calls_made);
-    
+
     Ok(())
 }
 
 async fn run_interactive_mode(config: EvaluationClientConfig) -> Result<()> {
     info!("Starting interactive mode");
-    
+
     let mut client = EvaluationClient::new(config);
     client.connect_to_mcp_server().await?;
-    
+
     println!("🤖 MCP Evaluation Client Interactive Mode");
     println!("Connected to ast-grep MCP server");
     println!("Type your prompts below (type 'quit' to exit, 'reset' to clear conversation):\n");
-    
+
     loop {
         print!("> ");
         use std::io::{self, Write};
         io::stdout().flush()?;
-        
+
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
         let input = input.trim();
-        
+
         if input.is_empty() {
             continue;
         }
-        
+
         if input == "quit" || input == "exit" {
             println!("Goodbye! 👋");
             break;
         }
-        
+
         if input == "reset" {
             client.reset_conversation();
             println!("🔄 Conversation reset\n");
             continue;
         }
-        
+
         if input == "tools" {
             match client.get_available_tools().await {
                 Ok(tools) => {
@@ -193,7 +199,7 @@ async fn run_interactive_mode(config: EvaluationClientConfig) -> Result<()> {
             }
             continue;
         }
-        
+
         match client.chat_with_llm(input).await {
             Ok(response) => {
                 println!("🤖: {}\n", response);
@@ -203,6 +209,6 @@ async fn run_interactive_mode(config: EvaluationClientConfig) -> Result<()> {
             }
         }
     }
-    
+
     Ok(())
 }

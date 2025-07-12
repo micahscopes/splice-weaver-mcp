@@ -1,12 +1,12 @@
 use anyhow::Result;
 use insta::{assert_yaml_snapshot, with_settings};
-use mcp_ast_grep::evaluation_client::{
+use splice_weaver_mcp::evaluation_client::{
     create_default_test_cases, EvaluationClient, EvaluationClientConfig, ResponseSnapshot,
     SnapshotMetadata, TestCase,
 };
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Creates a snapshot test configuration with reproducible settings
 fn create_test_config() -> EvaluationClientConfig {
@@ -33,7 +33,7 @@ fn create_snapshot_metadata(test_name: &str, model_name: &str, prompt: &str) -> 
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    
+
     SnapshotMetadata {
         test_name: test_name.to_string(),
         model_name: model_name.to_string(),
@@ -52,65 +52,68 @@ fn create_snapshot_metadata(test_name: &str, model_name: &str, prompt: &str) -> 
 async fn test_llm_response_snapshot(test_case: &TestCase) -> Result<()> {
     let config = create_test_config();
     let mut client = EvaluationClient::new(config.clone());
-    
+
     // Skip actual server connection for testing
     // client.connect_to_mcp_server().await?;
-    
+
     let result = client.evaluate_prompt(&test_case.prompt).await?;
     let analysis = client.analyze_response(&result.response, &result);
-    
-    let metadata = create_snapshot_metadata(
-        &test_case.name,
-        &config.model_name,
-        &test_case.prompt,
-    );
-    
+
+    let metadata = create_snapshot_metadata(&test_case.name, &config.model_name, &test_case.prompt);
+
     let snapshot = ResponseSnapshot {
         metadata,
         evaluation_result: result,
         response_analysis: analysis,
     };
-    
+
     // Use insta to create/compare snapshots
-    let snapshot_name = format!("{}_{}", test_case.name.replace(" ", "_"), hash_prompt(&test_case.prompt));
-    
+    let snapshot_name = format!(
+        "{}_{}",
+        test_case.name.replace(" ", "_"),
+        hash_prompt(&test_case.prompt)
+    );
+
     with_settings!({
         snapshot_path => "snapshots",
         prepend_module_to_snapshot => false,
     }, {
         assert_yaml_snapshot!(snapshot_name, snapshot);
     });
-    
+
     Ok(())
 }
 
 #[tokio::test]
 async fn test_basic_ast_search_snapshot() -> Result<()> {
     let test_cases = create_default_test_cases();
-    let basic_search = test_cases.iter()
+    let basic_search = test_cases
+        .iter()
         .find(|tc| tc.name == "Basic AST search")
         .expect("Basic AST search test case should exist");
-    
+
     test_llm_response_snapshot(basic_search).await
 }
 
 #[tokio::test]
 async fn test_scope_finding_snapshot() -> Result<()> {
     let test_cases = create_default_test_cases();
-    let scope_finding = test_cases.iter()
+    let scope_finding = test_cases
+        .iter()
         .find(|tc| tc.name == "Scope finding")
         .expect("Scope finding test case should exist");
-    
+
     test_llm_response_snapshot(scope_finding).await
 }
 
 #[tokio::test]
 async fn test_code_refactoring_snapshot() -> Result<()> {
     let test_cases = create_default_test_cases();
-    let code_refactoring = test_cases.iter()
+    let code_refactoring = test_cases
+        .iter()
         .find(|tc| tc.name == "Code refactoring")
         .expect("Code refactoring test case should exist");
-    
+
     test_llm_response_snapshot(code_refactoring).await
 }
 
@@ -125,11 +128,11 @@ async fn test_error_handling_snapshot() -> Result<()> {
             result.success && result.response.contains("try") && result.response.contains("catch")
         },
     };
-    
+
     test_llm_response_snapshot(&test_case).await
 }
 
-#[tokio::test] 
+#[tokio::test]
 async fn test_complex_query_snapshot() -> Result<()> {
     let test_case = TestCase {
         name: "Complex multi-step query".to_string(),
@@ -139,22 +142,22 @@ async fn test_complex_query_snapshot() -> Result<()> {
             result.success && result.tool_calls_made >= 2
         },
     };
-    
+
     test_llm_response_snapshot(&test_case).await
 }
 
 /// Utility function to run all snapshot tests in batch
-#[tokio::test] 
+#[tokio::test]
 async fn test_batch_snapshot_generation() -> Result<()> {
     let test_cases = create_default_test_cases();
-    
+
     for test_case in &test_cases {
         println!("Processing snapshot for: {}", test_case.name);
         if let Err(e) = test_llm_response_snapshot(test_case).await {
             eprintln!("Failed to create snapshot for {}: {}", test_case.name, e);
         }
     }
-    
+
     Ok(())
 }
 
@@ -167,49 +170,49 @@ async fn test_response_consistency() -> Result<()> {
         expected_tools: vec!["execute_rule".to_string()],
         success_criteria: |result| result.success,
     };
-    
+
     let config = create_test_config();
     let mut results = Vec::new();
-    
+
     // Run the same prompt multiple times to check for consistency
     for i in 0..3 {
         let mut client = EvaluationClient::new(config.clone());
         let result = client.evaluate_prompt(&test_case.prompt).await?;
         let analysis = client.analyze_response(&result.response, &result);
-        
+
         let metadata = create_snapshot_metadata(
             &format!("{}_run_{}", test_case.name, i),
             &config.model_name,
             &test_case.prompt,
         );
-        
+
         let snapshot = ResponseSnapshot {
             metadata,
             evaluation_result: result,
             response_analysis: analysis,
         };
-        
+
         results.push(snapshot);
     }
-    
+
     // Create a comparison snapshot showing all runs
     let snapshot_name = format!("consistency_check_{}", hash_prompt(&test_case.prompt));
-    
+
     with_settings!({
         snapshot_path => "snapshots",
         prepend_module_to_snapshot => false,
     }, {
         assert_yaml_snapshot!(snapshot_name, results);
     });
-    
+
     Ok(())
 }
 
 /// Integration test that validates snapshot structure
 #[test]
 fn test_snapshot_structure_validation() {
-    use mcp_ast_grep::evaluation_client::*;
-    
+    use splice_weaver_mcp::evaluation_client::*;
+
     // Create a sample snapshot to validate structure
     let metadata = SnapshotMetadata {
         test_name: "structure_test".to_string(),
@@ -218,7 +221,7 @@ fn test_snapshot_structure_validation() {
         git_commit: Some("abc123".to_string()),
         prompt_hash: "def456".to_string(),
     };
-    
+
     let result = EvaluationResult {
         prompt: "test prompt".to_string(),
         response: "test response".to_string(),
@@ -236,7 +239,7 @@ fn test_snapshot_structure_validation() {
         }],
         conversation_length: 3,
     };
-    
+
     let analysis = ResponseAnalysis {
         contains_tool_calls: true,
         contains_code: false,
@@ -246,17 +249,17 @@ fn test_snapshot_structure_validation() {
         success_indicators: vec!["test".to_string()],
         failure_indicators: vec![],
     };
-    
+
     let snapshot = ResponseSnapshot {
         metadata,
         evaluation_result: result,
         response_analysis: analysis,
     };
-    
+
     // Validate that the snapshot can be serialized/deserialized
     let yaml = serde_yaml::to_string(&snapshot).expect("Should serialize to YAML");
-    let _deserialized: ResponseSnapshot = serde_yaml::from_str(&yaml)
-        .expect("Should deserialize from YAML");
-    
+    let _deserialized: ResponseSnapshot =
+        serde_yaml::from_str(&yaml).expect("Should deserialize from YAML");
+
     println!("Snapshot structure validation passed");
 }
