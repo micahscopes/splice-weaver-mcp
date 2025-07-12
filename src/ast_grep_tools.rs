@@ -149,6 +149,33 @@ impl AstGrepTools {
 
     pub fn list_resources(&self) -> Vec<Resource> {
         let mut resources = vec![
+            // Discovery and help resources (most important for smaller models)
+            Resource::new(
+                RawResource {
+                    uri: "ast-grep://discover".to_string(),
+                    name: "🔍 Resource Discovery".to_string(),
+                    description: Some(
+                        "Complete guide to all available resources and how to use them".to_string(),
+                    ),
+                    mime_type: Some("text/markdown".to_string()),
+                    size: None,
+                },
+                None,
+            ),
+            Resource::new(
+                RawResource {
+                    uri: "ast-grep://languages".to_string(),
+                    name: "📚 Available Languages".to_string(),
+                    description: Some(
+                        "List of supported programming languages with example URIs for each".to_string(),
+                    ),
+                    mime_type: Some("text/markdown".to_string()),
+                    size: None,
+                },
+                None,
+            ),
+            
+            // Core documentation resources
             Resource::new(
                 RawResource {
                     uri: "ast-grep://binary-path".to_string(),
@@ -230,12 +257,13 @@ impl AstGrepTools {
                 },
                 None,
             ),
-            // Dynamic resource templates - these are just documentation of available patterns
+            
+            // Quick access to popular language examples
             Resource::new(
                 RawResource {
-                    uri: "ast-grep://docs/{type}".to_string(),
-                    name: "Dynamic Documentation".to_string(),
-                    description: Some("Dynamic documentation generator. Types: examples-by-language, pattern-syntax, rule-composition, language-guide/{lang}".to_string()),
+                    uri: "ast-grep://examples/javascript".to_string(),
+                    name: "JavaScript Examples".to_string(),
+                    description: Some("JavaScript/TypeScript pattern examples and rules".to_string()),
                     mime_type: Some("text/markdown".to_string()),
                     size: None,
                 },
@@ -243,9 +271,9 @@ impl AstGrepTools {
             ),
             Resource::new(
                 RawResource {
-                    uri: "ast-grep://examples/{language}".to_string(),
-                    name: "Language-Specific Examples".to_string(),
-                    description: Some("Examples for specific programming languages. Use: javascript, typescript, python, rust, java, go, etc.".to_string()),
+                    uri: "ast-grep://examples/python".to_string(),
+                    name: "Python Examples".to_string(),
+                    description: Some("Python pattern examples and rules".to_string()),
                     mime_type: Some("text/markdown".to_string()),
                     size: None,
                 },
@@ -253,9 +281,9 @@ impl AstGrepTools {
             ),
             Resource::new(
                 RawResource {
-                    uri: "ast-grep://patterns/{category}".to_string(),
-                    name: "Pattern Categories".to_string(),
-                    description: Some("Pattern examples by category. Categories: variables, functions, loops, classes, error-handling, imports".to_string()),
+                    uri: "ast-grep://examples/rust".to_string(),
+                    name: "Rust Examples".to_string(),
+                    description: Some("Rust pattern examples and rules".to_string()),
                     mime_type: Some("text/markdown".to_string()),
                     size: None,
                 },
@@ -263,9 +291,19 @@ impl AstGrepTools {
             ),
             Resource::new(
                 RawResource {
-                    uri: "ast-grep://query/{type}".to_string(),
-                    name: "Dynamic Queries".to_string(),
-                    description: Some("Dynamic query interface. Types: search?q=term, filter?has_fix=true, similar?pattern=code".to_string()),
+                    uri: "ast-grep://examples/java".to_string(),
+                    name: "Java Examples".to_string(),
+                    description: Some("Java pattern examples and rules".to_string()),
+                    mime_type: Some("text/markdown".to_string()),
+                    size: None,
+                },
+                None,
+            ),
+            Resource::new(
+                RawResource {
+                    uri: "ast-grep://examples/go".to_string(),
+                    name: "Go Examples".to_string(),
+                    description: Some("Go pattern examples and rules".to_string()),
                     mime_type: Some("text/markdown".to_string()),
                     size: None,
                 },
@@ -273,14 +311,57 @@ impl AstGrepTools {
             ),
         ];
 
-        // Add dynamic navigation resources
-        if let Ok(nav_resources) = self.load_navigation_resources() {
-            resources.extend(nav_resources);
+        // Add status information about catalog loading
+        let catalog_status = self.get_catalog_status();
+        resources.push(Resource::new(
+            RawResource {
+                uri: "ast-grep://catalog-status".to_string(),
+                name: "📊 Catalog Status".to_string(),
+                description: Some(format!("Catalog loading status: {}", catalog_status.summary)),
+                mime_type: Some("text/markdown".to_string()),
+                size: None,
+            },
+            None,
+        ));
+
+        // Add dynamic navigation resources with better error handling
+        match self.load_navigation_resources() {
+            Ok(nav_resources) => {
+                resources.extend(nav_resources);
+            }
+            Err(e) => {
+                // Add error resource instead of failing silently
+                resources.push(Resource::new(
+                    RawResource {
+                        uri: "ast-grep://navigation-error".to_string(),
+                        name: "⚠️ Navigation Error".to_string(),
+                        description: Some(format!("Failed to load navigation resources: {}", e)),
+                        mime_type: Some("text/plain".to_string()),
+                        size: None,
+                    },
+                    None,
+                ));
+            }
         }
 
-        // Add catalog examples from the generated JSON
-        if let Ok(catalog_resources) = self.load_catalog_resources() {
-            resources.extend(catalog_resources);
+        // Add catalog examples with better error handling
+        match self.load_catalog_resources() {
+            Ok(catalog_resources) => {
+                resources.extend(catalog_resources);
+            }
+            Err(e) => {
+                // Add error resource instead of failing silently
+                resources.push(Resource::new(
+                    RawResource {
+                        uri: "ast-grep://catalog-error".to_string(),
+                        name: "⚠️ Catalog Error".to_string(),
+                        description: Some(format!("Failed to load catalog resources: {}", e)),
+                        mime_type: Some("text/plain".to_string()),
+                        size: None,
+                    },
+                    None,
+                ));
+            }
         }
 
         resources
@@ -288,6 +369,14 @@ impl AstGrepTools {
 
     pub fn read_resource(&self, uri: &str) -> Result<String> {
         match uri {
+            // Discovery and help resources
+            "ast-grep://discover" => self.get_discovery_guide(),
+            "ast-grep://languages" => self.get_available_languages(),
+            "ast-grep://catalog-status" => self.get_catalog_status_content(),
+            "ast-grep://navigation-error" => self.get_navigation_error_content(),
+            "ast-grep://catalog-error" => self.get_catalog_error_content(),
+            
+            // Core resources
             "ast-grep://binary-path" => self.get_binary_path(),
             "ast-grep://cli-reference" => self.get_cli_reference(),
             "ast-grep://rule-examples" => self.get_rule_examples(),
@@ -295,6 +384,7 @@ impl AstGrepTools {
             "ast-grep://node-kinds" => self.get_node_kinds(),
             "ast-grep://cheatsheet/rules" => self.get_cheatsheet_rules(),
             "ast-grep://cheatsheet/yaml" => self.get_cheatsheet_yaml(),
+            
             // Legacy static URIs (deprecated, use dynamic ones)
             "ast-grep://examples-by-language" => self.get_examples_by_language(),
             "ast-grep://pattern-syntax" => self.get_pattern_syntax(),
@@ -1095,9 +1185,11 @@ Use this rule with the execute_rule tool:
             .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
         
         let catalog_content = std::fs::read_to_string(&catalog_path)
-            .map_err(|_| anyhow!("Failed to read catalog.json"))?;
+            .map_err(|e| anyhow!("Failed to read catalog.json from {}: {}", catalog_path.display(), e))?;
         
-        let catalog: Value = serde_json::from_str(&catalog_content)?;
+        let catalog: Value = serde_json::from_str(&catalog_content)
+            .map_err(|e| anyhow!("Failed to parse catalog.json: {}", e))?;
+        
         let mut resources = Vec::new();
 
         if let Some(examples) = catalog["examples"].as_array() {
@@ -1106,21 +1198,50 @@ Use this rule with the execute_rule tool:
                     let default_id = format!("example-{index}");
                     let id = example["id"].as_str().unwrap_or(&default_id);
                     let language = example["language"].as_str().unwrap_or("unknown");
-                    let message = example["message"].as_str().unwrap_or("No description");
-                    let source_file = example["source_file"].as_str().unwrap_or("unknown");
+                    let title = example["title"].as_str().unwrap_or(id);
+                    let description = example["description"].as_str().unwrap_or("No description");
+                    let has_fix = example["has_fix"].as_bool().unwrap_or(false);
+                    
+                    // Create more informative resource names and descriptions
+                    let name = if has_fix {
+                        format!("🔧 {title}")
+                    } else {
+                        format!("📝 {title}")
+                    };
+                    
+                    let full_description = format!(
+                        "{} [{}{}] {}",
+                        description,
+                        language.to_uppercase(),
+                        if has_fix { " + Fix" } else { "" },
+                        if let Some(playground) = example["playground_link"].as_str() {
+                            if !playground.is_empty() {
+                                "• Has playground"
+                            } else {
+                                ""
+                            }
+                        } else {
+                            ""
+                        }
+                    );
                     
                     resources.push(Resource::new(
                         RawResource {
                             uri: format!("ast-grep://catalog/{id}"),
-                            name: format!("Catalog Rule: {id}"),
-                            description: Some(format!("{message} (Language: {language}, Source: {source_file})")),
+                            name,
+                            description: Some(full_description),
                             mime_type: Some("text/yaml".to_string()),
                             size: Some(content.len() as u32),
                         },
                         None,
                     ));
+                } else {
+                    // Log warning for malformed examples but continue processing
+                    eprintln!("Warning: Catalog example {} is missing content field", index);
                 }
             }
+        } else {
+            return Err(anyhow!("Catalog file is missing 'examples' array"));
         }
 
         Ok(resources)
@@ -1161,9 +1282,11 @@ Use this rule with the execute_rule tool:
             .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
         
         let catalog_content = std::fs::read_to_string(&catalog_path)
-            .map_err(|_| anyhow!("Failed to read catalog.json"))?;
+            .map_err(|e| anyhow!("Failed to read catalog.json for navigation from {}: {}", catalog_path.display(), e))?;
         
-        let catalog: Value = serde_json::from_str(&catalog_content)?;
+        let catalog: Value = serde_json::from_str(&catalog_content)
+            .map_err(|e| anyhow!("Failed to parse catalog.json for navigation: {}", e))?;
+        
         let mut resources = Vec::new();
 
         if let Some(examples) = catalog["examples"].as_array() {
@@ -2273,6 +2396,436 @@ rule:
 
     fn find_similar_patterns(&self, pattern: &str) -> Result<String> {
         Ok(format!("Similar patterns to: {pattern}"))
+    }
+
+    // New discovery and status methods
+    fn get_discovery_guide(&self) -> Result<String> {
+        Ok(r#"# 🔍 AST-Grep MCP Resource Discovery Guide
+
+Welcome! This guide helps you navigate all available resources in the AST-Grep MCP server.
+
+## 🚀 Quick Start Resources
+
+**For beginners, start with these:**
+- `ast-grep://languages` - See all supported programming languages
+- `ast-grep://examples/javascript` - JavaScript/TypeScript examples  
+- `ast-grep://examples/python` - Python examples
+- `ast-grep://rule-examples` - Basic rule configurations
+- `ast-grep://cheatsheet/rules` - Comprehensive rule reference
+
+## 📚 Core Documentation
+
+### Essential References
+- `ast-grep://cli-reference` - Complete CLI documentation
+- `ast-grep://cheatsheet/rules` - Rule syntax cheat sheet
+- `ast-grep://cheatsheet/yaml` - YAML configuration reference
+- `ast-grep://binary-path` - Get the ast-grep executable path
+
+### Pattern References  
+- `ast-grep://relational-patterns` - Inside/has/follows examples
+- `ast-grep://node-kinds` - Tree-sitter node types by language
+
+## 🎯 Language-Specific Examples
+
+### Direct Access (Most Popular)
+- `ast-grep://examples/javascript` - JavaScript/TypeScript
+- `ast-grep://examples/python` - Python  
+- `ast-grep://examples/rust` - Rust
+- `ast-grep://examples/java` - Java
+- `ast-grep://examples/go` - Go
+
+### Any Language
+- `ast-grep://examples/{language}` - Replace {language} with: cpp, csharp, ruby, php, etc.
+
+## 🔧 Dynamic Resources
+
+### Pattern Categories
+- `ast-grep://patterns/variables` - Variable declarations and usage
+- `ast-grep://patterns/functions` - Function definitions and calls
+- `ast-grep://patterns/loops` - Loop constructs
+- `ast-grep://patterns/classes` - Class definitions
+- `ast-grep://patterns/error-handling` - Try/catch, error patterns
+- `ast-grep://patterns/imports` - Import/require statements
+
+### Documentation Types
+- `ast-grep://docs/examples-by-language` - All examples organized by language
+- `ast-grep://docs/pattern-syntax` - Pattern syntax reference
+- `ast-grep://docs/rule-composition` - Building complex rules
+- `ast-grep://docs/language-guide/{lang}` - Detailed language guides
+
+### Query Interface
+- `ast-grep://query/search?q=console.log` - Search catalog by term
+- `ast-grep://query/filter?has_fix=true` - Find rules with fixes
+- `ast-grep://query/similar?pattern=function` - Find similar patterns
+
+## 📊 Catalog Resources
+
+### Status and Navigation
+- `ast-grep://catalog-status` - Check catalog loading status
+- `ast-grep://navigation/language/{lang}` - Examples by language
+- `ast-grep://navigation/feature/{feature}` - Examples by feature
+- `ast-grep://navigation/has-fix` - Examples with code fixes
+
+### Individual Examples
+- `ast-grep://catalog/{id}` - Specific catalog examples (browse navigation first)
+
+## 💡 Tips for Smaller Models
+
+1. **Start Simple**: Begin with `ast-grep://examples/{your-language}`
+2. **Use Discovery**: Check `ast-grep://languages` for supported languages
+3. **Clear URIs**: All resource URIs follow the pattern `ast-grep://category/specifics`
+4. **Error Info**: If something fails, error resources show what went wrong
+5. **Status Check**: Use `ast-grep://catalog-status` to troubleshoot catalog issues
+
+## 📖 Usage Examples
+
+### Finding JavaScript Patterns
+```
+1. Read ast-grep://examples/javascript
+2. For more: ast-grep://navigation/language/javascript  
+3. Specific pattern: ast-grep://patterns/functions
+```
+
+### Creating Rules
+```
+1. Start with: ast-grep://rule-examples
+2. Learn syntax: ast-grep://cheatsheet/rules
+3. Advanced: ast-grep://docs/rule-composition
+```
+
+### Language Support
+```
+1. Check: ast-grep://languages
+2. Examples: ast-grep://examples/{your-language}
+3. Guide: ast-grep://docs/language-guide/{your-language}
+```
+
+## 🆘 Troubleshooting
+
+- **Empty results?** Check `ast-grep://catalog-status`
+- **Unknown language?** See `ast-grep://languages` for supported ones
+- **Need examples?** Start with `ast-grep://examples/{language}`
+- **Complex rules?** Read `ast-grep://docs/rule-composition`
+
+This MCP server provides 50+ resources to help you master AST-based code transformation!"#.to_string())
+    }
+
+    fn get_available_languages(&self) -> Result<String> {
+        Ok(r#"# 📚 Supported Programming Languages
+
+ast-grep supports the following programming languages through Tree-sitter grammars.
+
+## 🔥 Most Popular (with direct example access)
+
+| Language | URI | Description |
+|----------|-----|-------------|
+| **JavaScript** | `ast-grep://examples/javascript` | JavaScript and TypeScript patterns |
+| **Python** | `ast-grep://examples/python` | Python 3.x patterns and idioms |
+| **Rust** | `ast-grep://examples/rust` | Rust patterns and error handling |
+| **Java** | `ast-grep://examples/java` | Java class and method patterns |
+| **Go** | `ast-grep://examples/go` | Go function and error patterns |
+
+## 🌐 All Supported Languages
+
+### Systems Programming
+- **C** - `ast-grep://examples/c`
+- **C++** - `ast-grep://examples/cpp` 
+- **Rust** - `ast-grep://examples/rust`
+- **Go** - `ast-grep://examples/go`
+- **Zig** - `ast-grep://examples/zig`
+
+### Web & Application Development  
+- **JavaScript** - `ast-grep://examples/javascript`
+- **TypeScript** - `ast-grep://examples/typescript` (same as javascript)
+- **Python** - `ast-grep://examples/python`
+- **Java** - `ast-grep://examples/java`
+- **C#** - `ast-grep://examples/csharp`
+- **Kotlin** - `ast-grep://examples/kotlin`
+- **Scala** - `ast-grep://examples/scala`
+
+### Functional Programming
+- **Haskell** - `ast-grep://examples/haskell`
+- **OCaml** - `ast-grep://examples/ocaml`
+- **Elm** - `ast-grep://examples/elm`
+- **Clojure** - `ast-grep://examples/clojure`
+
+### Scripting & Dynamic
+- **Ruby** - `ast-grep://examples/ruby`
+- **PHP** - `ast-grep://examples/php`
+- **Lua** - `ast-grep://examples/lua`
+- **Perl** - `ast-grep://examples/perl`
+
+### Mobile Development
+- **Swift** - `ast-grep://examples/swift`
+- **Dart** - `ast-grep://examples/dart`
+
+### Shell & Configuration
+- **Bash** - `ast-grep://examples/bash`
+- **YAML** - `ast-grep://examples/yaml`
+- **JSON** - `ast-grep://examples/json`
+- **TOML** - `ast-grep://examples/toml`
+
+### Markup & Documentation  
+- **HTML** - `ast-grep://examples/html`
+- **CSS** - `ast-grep://examples/css`
+- **Markdown** - `ast-grep://examples/markdown`
+
+## 🎯 Usage Patterns
+
+### Get Examples for Any Language
+```
+ast-grep://examples/{language}
+```
+
+### Check Available Patterns
+```
+ast-grep://navigation/language/{language}
+```
+
+### Language-Specific Guides
+```
+ast-grep://docs/language-guide/{language}
+```
+
+## 📝 File Extensions by Language
+
+| Language | Extensions | Example |
+|----------|------------|---------|
+| JavaScript | `.js`, `.jsx`, `.mjs` | `ast-grep://examples/javascript` |
+| TypeScript | `.ts`, `.tsx` | `ast-grep://examples/javascript` |
+| Python | `.py`, `.pyw` | `ast-grep://examples/python` |
+| Rust | `.rs` | `ast-grep://examples/rust` |
+| Java | `.java` | `ast-grep://examples/java` |
+| C/C++ | `.c`, `.cpp`, `.h`, `.hpp` | `ast-grep://examples/cpp` |
+| Go | `.go` | `ast-grep://examples/go` |
+
+## 💡 Quick Tips
+
+1. **Case Sensitive**: Use exact language names (lowercase)
+2. **Aliases**: `typescript` works same as `javascript`
+3. **Patterns**: All languages support the same pattern syntax
+4. **Node Types**: Use `ast-grep://node-kinds` for language-specific AST nodes
+
+## 🔍 Don't See Your Language?
+
+If your language isn't listed:
+1. Check if it has a Tree-sitter grammar
+2. File an issue at the ast-grep repository
+3. Consider using a similar language's patterns as a starting point"#.to_string())
+    }
+
+    fn get_catalog_status(&self) -> CatalogStatus {
+        let catalog_path = std::env::var("OUT_DIR")
+            .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
+            .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
+            .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
+        
+        match std::fs::read_to_string(&catalog_path) {
+            Ok(content) => {
+                match serde_json::from_str::<Value>(&content) {
+                    Ok(catalog) => {
+                        let example_count = catalog["examples"]
+                            .as_array()
+                            .map(|arr| arr.len())
+                            .unwrap_or(0);
+                        
+                        CatalogStatus {
+                            loaded: true,
+                            path: catalog_path.to_string_lossy().to_string(),
+                            example_count,
+                            summary: format!("✅ Loaded {} catalog examples", example_count),
+                            error: None,
+                        }
+                    }
+                    Err(e) => CatalogStatus {
+                        loaded: false,
+                        path: catalog_path.to_string_lossy().to_string(),
+                        example_count: 0,
+                        summary: "❌ Catalog file corrupt".to_string(),
+                        error: Some(format!("JSON parse error: {}", e)),
+                    }
+                }
+            }
+            Err(e) => CatalogStatus {
+                loaded: false,
+                path: catalog_path.to_string_lossy().to_string(),
+                example_count: 0,
+                summary: "❌ Catalog file not found".to_string(),
+                error: Some(format!("File error: {}", e)),
+            }
+        }
+    }
+
+    fn get_catalog_status_content(&self) -> Result<String> {
+        let status = self.get_catalog_status();
+        
+        Ok(format!(r#"# 📊 Catalog Status
+
+## Current Status: {}
+
+**File Location**: `{}`  
+**Examples Loaded**: {}  
+**Status**: {}
+
+## Details
+
+{}
+
+## What This Means
+
+{}
+
+## Troubleshooting
+
+{}
+
+"#,
+            if status.loaded { "✅ LOADED" } else { "❌ FAILED" },
+            status.path,
+            status.example_count,
+            status.summary,
+            if let Some(error) = &status.error {
+                format!("**Error Details**: {}", error)
+            } else {
+                "The catalog loaded successfully and all example resources are available.".to_string()
+            },
+            if status.loaded {
+                format!(
+                    "✅ **Good news!** {} catalog examples are available.\n\
+                    You can browse them using:\n\
+                    - `ast-grep://navigation/language/{{lang}}` for language-specific examples\n\
+                    - `ast-grep://navigation/has-fix` for examples with code fixes\n\
+                    - `ast-grep://catalog/{{id}}` for specific examples",
+                    status.example_count
+                )
+            } else {
+                "❌ **Issue detected.** Catalog examples are not available.\n\
+                This means you won't see individual catalog resources, but all static resources still work.".to_string()
+            },
+            if status.loaded {
+                "🎉 **No action needed!** Everything is working correctly."
+            } else {
+                "🔧 **To fix catalog issues:**\n\
+                1. Try rebuilding the project: `cargo build`\n\
+                2. Check if the build process can access GitHub (for cloning examples)\n\
+                3. Verify disk space and permissions in the build directory\n\
+                4. If issues persist, you can still use all static resources"
+            }
+        ))
+    }
+
+    fn get_navigation_error_content(&self) -> Result<String> {
+        Ok("⚠️ Navigation resources failed to load. This usually means the catalog is not available. Check ast-grep://catalog-status for details.".to_string())
+    }
+
+    fn get_catalog_error_content(&self) -> Result<String> {
+        Ok("⚠️ Catalog resources failed to load. This usually means the catalog file is missing or corrupt. Check ast-grep://catalog-status for details.".to_string())
+    }
+}
+
+#[derive(Debug)]
+struct CatalogStatus {
+    loaded: bool,
+    path: String,
+    example_count: usize,
+    summary: String,
+    error: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    fn create_test_tools() -> AstGrepTools {
+        let binary_manager = Arc::new(BinaryManager::new().expect("Failed to create binary manager"));
+        AstGrepTools::new(binary_manager)
+    }
+
+    #[test]
+    fn test_discovery_resources_included() {
+        let tools = create_test_tools();
+        let resources = tools.list_resources();
+        
+        // Check that discovery resources are included
+        let discovery_guide = resources.iter().find(|r| r.raw.uri == "ast-grep://discover");
+        assert!(discovery_guide.is_some(), "Discovery guide should be included");
+        
+        let languages_list = resources.iter().find(|r| r.raw.uri == "ast-grep://languages");
+        assert!(languages_list.is_some(), "Languages list should be included");
+        
+        let catalog_status = resources.iter().find(|r| r.raw.uri == "ast-grep://catalog-status");
+        assert!(catalog_status.is_some(), "Catalog status should be included");
+    }
+
+    #[test]
+    fn test_popular_language_examples_included() {
+        let tools = create_test_tools();
+        let resources = tools.list_resources();
+        
+        // Check that popular language examples have direct access
+        let js_examples = resources.iter().find(|r| r.raw.uri == "ast-grep://examples/javascript");
+        assert!(js_examples.is_some(), "JavaScript examples should be directly accessible");
+        
+        let python_examples = resources.iter().find(|r| r.raw.uri == "ast-grep://examples/python");
+        assert!(python_examples.is_some(), "Python examples should be directly accessible");
+    }
+
+    #[test]
+    fn test_discovery_guide_content() {
+        let tools = create_test_tools();
+        let content = tools.get_discovery_guide().expect("Should generate discovery guide");
+        
+        assert!(content.contains("🔍 AST-Grep MCP Resource Discovery Guide"));
+        assert!(content.contains("Quick Start Resources"));
+        assert!(content.contains("ast-grep://languages"));
+        assert!(content.contains("Tips for Smaller Models"));
+    }
+
+    #[test]
+    fn test_languages_content() {
+        let tools = create_test_tools();
+        let content = tools.get_available_languages().expect("Should generate languages list");
+        
+        assert!(content.contains("📚 Supported Programming Languages"));
+        assert!(content.contains("JavaScript"));
+        assert!(content.contains("Python"));
+        assert!(content.contains("ast-grep://examples/"));
+    }
+
+    #[test]
+    fn test_error_handling_improvements() {
+        let tools = create_test_tools();
+        let resources = tools.list_resources();
+        
+        // Should have either catalog resources OR error resources, not empty list
+        let has_catalog = resources.iter().any(|r| r.raw.uri.starts_with("ast-grep://catalog/"));
+        let has_catalog_error = resources.iter().any(|r| r.raw.uri == "ast-grep://catalog-error");
+        let has_nav_error = resources.iter().any(|r| r.raw.uri == "ast-grep://navigation-error");
+        
+        // Should have either working catalog OR visible error information
+        assert!(has_catalog || has_catalog_error, "Should show catalog resources or catalog error");
+    }
+
+    #[test]
+    fn test_resource_count_increased() {
+        let tools = create_test_tools();
+        let resources = tools.list_resources();
+        
+        // Before improvements, there were ~11 static resources
+        // After improvements, we should have significantly more
+        assert!(resources.len() >= 15, "Should have at least 15 resources (was ~11 before improvements)");
+        
+        // Check for improved naming with emojis
+        let emoji_resources = resources.iter().filter(|r| {
+            r.raw.name.contains("🔍") || 
+            r.raw.name.contains("📚") || 
+            r.raw.name.contains("📊") ||
+            r.raw.name.contains("🔧") ||
+            r.raw.name.contains("📝")
+        }).count();
+        
+        assert!(emoji_resources > 0, "Should have resources with emoji names for better UX");
     }
 }
 
