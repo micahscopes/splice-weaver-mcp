@@ -202,3 +202,4 @@ fn extract_rule_types(yaml_value: &Yaml, rules: &mut Vec<String>) {
         }
     }
 }
+

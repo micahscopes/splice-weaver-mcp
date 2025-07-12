@@ -1,13 +1,15 @@
 use crate::binary_manager::BinaryManager;
+use crate::simple_search::SimpleSearchEngine;
 use anyhow::{anyhow, Result};
 use rmcp::model::*;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::process::Command as TokioCommand;
 
 pub struct AstGrepTools {
     binary_manager: Arc<BinaryManager>,
+    search_engine: Arc<Mutex<Option<SimpleSearchEngine>>>,
 }
 
 #[derive(serde::Deserialize)]
@@ -19,13 +21,39 @@ struct Position {
 
 impl AstGrepTools {
     pub fn new(binary_manager: Arc<BinaryManager>) -> Self {
-        Self { binary_manager }
+        Self { 
+            binary_manager,
+            search_engine: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    fn with_search_engine<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&SimpleSearchEngine) -> Result<R>,
+    {
+        let mut engine_guard = self.search_engine.lock().unwrap();
+        
+        if engine_guard.is_none() {
+            // Initialize search engine
+            let catalog_path = std::env::var("OUT_DIR")
+                .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
+                .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
+                .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
+            
+            let engine = SimpleSearchEngine::new(catalog_path.to_str().unwrap())?;
+            *engine_guard = Some(engine);
+        }
+        
+        f(engine_guard.as_ref().unwrap())
     }
 
     pub async fn call_tool(&self, tool_name: &str, arguments: Value) -> Result<String> {
         match tool_name {
             "find_scope" => self.find_scope(arguments).await,
             "execute_rule" => self.execute_rule(arguments).await,
+            "search_examples" => self.search_examples(arguments).await,
+            "similarity_search" => self.similarity_search_tool(arguments).await,
+            "suggest_examples" => self.suggest_examples(arguments).await,
             _ => Err(anyhow!("Unknown tool: {}", tool_name)),
         }
     }
@@ -2241,22 +2269,28 @@ These examples can be copied directly into your ast-grep rules or used as templa
         let language = params.get("lang").map(|s| s.as_str()).unwrap_or("any");
         let limit = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(10);
         
-        // Search through catalog for matching patterns
-        let results = self.search_catalog(query, language, limit)?;
+        // Get actual results to count them
+        let search_results = self.with_search_engine(|engine| {
+            let lang_filter = if language == "any" { None } else { Some(language) };
+            engine.search(query, lang_filter, limit)
+        })?;
+        
+        // Search through catalog for matching patterns (format results)
+        let results_display = self.search_catalog(query, language, limit)?;
         
         Ok(format!(r#"# Search Results for "{query}"
 
 **Language**: {language}  
-**Results**: {count} of {total}
+**Results**: {count} matches (limited to {limit})
 
 {results}
 
 "#,
             query = query,
             language = language,
-            count = results.len(),
-            total = self.get_total_patterns()?,
-            results = results
+            count = search_results.len(),
+            limit = limit,
+            results = results_display
         ))
     }
 
@@ -2285,13 +2319,53 @@ These examples can be copied directly into your ast-grep rules or used as templa
 
     fn handle_similar_query(&self, params: &std::collections::HashMap<String, String>) -> Result<String> {
         let pattern = params.get("pattern").ok_or_else(|| anyhow!("Missing pattern"))?;
-        let similar = self.find_similar_patterns(pattern)?;
+        let limit = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(10);
         
-        Ok(format!(r#"# Similar Patterns to "{pattern}"
+        let results = self.with_search_engine(|engine| {
+            engine.similarity_search(pattern, limit)
+        })?;
+        
+        if results.is_empty() {
+            return Ok(format!(
+                "## No Similar Patterns Found\n\nNo examples found similar to the provided pattern.\n\n**Pattern**: {}\n\n**Suggestion**: Try using simpler or more general terms in your pattern.",
+                pattern
+            ));
+        }
 
-{similar}
+        let mut output = format!("# Similar Patterns to \"{}\"\n\n", pattern);
+        output.push_str(&format!("**Found {} similar examples:**\n\n", results.len()));
+        
+        for (i, result) in results.iter().enumerate() {
+            output.push_str(&format!("### {}. {}\n\n", i + 1, result.title));
+            output.push_str(&format!("**Language**: {} | **Similarity Score**: {:.2}\n", result.language, result.score));
+            
+            if result.has_fix {
+                output.push_str("**Has Fix**: Yes ✅\n");
+            }
+            
+            output.push_str(&format!("\n**Description**: {}\n\n", result.description));
+            
+            if !result.yaml_content.is_empty() {
+                output.push_str("**YAML Rule**:\n```yaml\n");
+                output.push_str(&result.yaml_content);
+                output.push_str("\n```\n\n");
+            }
+            
+            if !result.playground_link.is_empty() {
+                output.push_str(&format!("**[Try it in Playground]({})**\n\n", result.playground_link));
+            }
+            
+            output.push_str("---\n\n");
+        }
 
-"#))
+        // Add caveat message for similarity search
+        output.push_str("## ⚠️ Similarity Search Note\n\n");
+        output.push_str("These examples were found based on text similarity to your provided pattern. ");
+        output.push_str("**The similarity scoring is based on common terms and concepts, not exact pattern matching.** ");
+        output.push_str("Review each example carefully to determine if it's relevant to your specific use case.\n\n");
+        output.push_str("Consider these as inspiration and adapt them to your exact requirements.");
+
+        Ok(output)
     }
 
     // Helper methods for dynamic content generation
@@ -2369,7 +2443,56 @@ rule:
     }
 
     fn search_catalog(&self, query: &str, language: &str, limit: usize) -> Result<String> {
-        Ok(format!("Search results for '{query}' in {language} (limit: {limit})"))
+        let results = self.with_search_engine(|engine| {
+            let lang_filter = if language == "any" { None } else { Some(language) };
+            engine.search(query, lang_filter, limit)
+        })?;
+
+        if results.is_empty() {
+            return Ok(format!(
+                "## No Results Found\n\nNo examples found matching '{}' in {} language.\n\n**Suggestion**: Try:\n- Using broader search terms\n- Searching in 'any' language\n- Using different keywords related to your problem",
+                query, language
+            ));
+        }
+
+        let mut output = String::new();
+        
+        for (i, result) in results.iter().enumerate() {
+            output.push_str(&format!("### {}. {}\n\n", i + 1, result.title));
+            output.push_str(&format!("**Language**: {}\n", result.language));
+            output.push_str(&format!("**Score**: {:.2}\n", result.score));
+            
+            if result.has_fix {
+                output.push_str("**Has Fix**: Yes ✅\n");
+            }
+            
+            if !result.features.is_empty() {
+                output.push_str(&format!("**Features**: {}\n", result.features.join(", ")));
+            }
+            
+            output.push_str(&format!("\n**Description**: {}\n\n", result.description));
+            
+            if !result.yaml_content.is_empty() {
+                output.push_str("**YAML Rule**:\n```yaml\n");
+                output.push_str(&result.yaml_content);
+                output.push_str("\n```\n\n");
+            }
+            
+            if !result.playground_link.is_empty() {
+                output.push_str(&format!("**[Try it in Playground]({})**\n\n", result.playground_link));
+            }
+            
+            output.push_str("---\n\n");
+        }
+
+        // Add caveat message
+        output.push_str("## ⚠️ Important Note\n\n");
+        output.push_str("These examples are provided to help you understand similar patterns and approaches. ");
+        output.push_str("**Please don't assume these examples will be a perfect fit for your specific use case.** ");
+        output.push_str("You may need to adapt the patterns, rules, or logic to match your exact requirements.\n\n");
+        output.push_str("Consider these examples as starting points and learning resources rather than drop-in solutions.");
+
+        Ok(output)
     }
 
     fn get_total_patterns(&self) -> Result<usize> {
@@ -2394,8 +2517,40 @@ rule:
         filters.join("\n")
     }
 
-    fn find_similar_patterns(&self, pattern: &str) -> Result<String> {
-        Ok(format!("Similar patterns to: {pattern}"))
+    // New MCP tools for search functionality
+    async fn search_examples(&self, args: Value) -> Result<String> {
+        let query = args["query"].as_str().ok_or(anyhow!("Missing query"))?;
+        let language = args["language"].as_str().unwrap_or("any");
+        let limit = args["limit"].as_u64().unwrap_or(10) as usize;
+        
+        let results = self.with_search_engine(|engine| {
+            let lang_filter = if language == "any" { None } else { Some(language) };
+            engine.search(query, lang_filter, limit)
+        })?;
+
+        if results.is_empty() {
+            return Ok(format!(
+                "No examples found matching '{}' in {} language. Try broader search terms or search in 'any' language.",
+                query, language
+            ));
+        }
+
+        let mut output = format!("Found {} examples for '{}' in {}:\n\n", results.len(), query, language);
+        
+        for (i, result) in results.iter().enumerate() {
+            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
+            output.push_str(&format!("   Description: {}\n", result.description));
+            if result.has_fix {
+                output.push_str("   ✅ Has Fix\n");
+            }
+            if !result.features.is_empty() {
+                output.push_str(&format!("   Features: {}\n", result.features.join(", ")));
+            }
+            output.push_str("\n");
+        }
+
+        output.push_str("⚠️ Note: These are starting points - adapt them to your specific requirements.");
+        Ok(output)
     }
 
     // New discovery and status methods
@@ -2720,6 +2875,78 @@ If your language isn't listed:
 
     fn get_catalog_error_content(&self) -> Result<String> {
         Ok("⚠️ Catalog resources failed to load. This usually means the catalog file is missing or corrupt. Check ast-grep://catalog-status for details.".to_string())
+    }
+
+    async fn similarity_search_tool(&self, args: Value) -> Result<String> {
+        let pattern = args["pattern"].as_str().ok_or(anyhow!("Missing pattern"))?;
+        let limit = args["limit"].as_u64().unwrap_or(10) as usize;
+        
+        let results = self.with_search_engine(|engine| {
+            engine.similarity_search(pattern, limit)
+        })?;
+
+        if results.is_empty() {
+            return Ok("No similar patterns found. Try using simpler or more general terms.".to_string());
+        }
+
+        let mut output = format!("Found {} similar patterns:\n\n", results.len());
+        
+        for (i, result) in results.iter().enumerate() {
+            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
+            output.push_str(&format!("   Similarity: {:.2}\n", result.score));
+            output.push_str(&format!("   Description: {}\n", result.description));
+            if !result.yaml_content.is_empty() {
+                output.push_str(&format!("   YAML Rule: {}...\n", 
+                    result.yaml_content.lines().next().unwrap_or("").chars().take(50).collect::<String>()));
+            }
+            output.push_str("\n");
+        }
+
+        output.push_str("⚠️ Note: Similarity is based on text matching - review each example for relevance.");
+        Ok(output)
+    }
+
+    async fn suggest_examples(&self, args: Value) -> Result<String> {
+        let problem_description = args["description"].as_str().ok_or(anyhow!("Missing description"))?;
+        let language = args["language"].as_str().unwrap_or("any");
+        let limit = args["limit"].as_u64().unwrap_or(5) as usize;
+        
+        // Use similarity search with the problem description
+        let results = self.with_search_engine(|engine| {
+            let lang_filter = if language == "any" { None } else { Some(language) };
+            // First try regular search with the description
+            let search_results = engine.search(problem_description, lang_filter, limit);
+            if search_results.as_ref().map_or(true, |r| r.is_empty()) {
+                // Fall back to similarity search
+                engine.similarity_search(problem_description, limit)
+            } else {
+                search_results
+            }
+        })?;
+
+        if results.is_empty() {
+            return Ok("No relevant examples found for your problem description. Try describing your problem with different terms or be more specific about what you're trying to achieve.".to_string());
+        }
+
+        let mut output = format!("Based on your problem description, here are {} potentially relevant examples:\n\n", results.len());
+        
+        for (i, result) in results.iter().enumerate() {
+            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
+            output.push_str(&format!("   Relevance: {:.2}\n", result.score));
+            output.push_str(&format!("   What it does: {}\n", result.description));
+            if result.has_fix {
+                output.push_str("   ✅ Includes code transformation\n");
+            }
+            if !result.playground_link.is_empty() {
+                output.push_str(&format!("   Try it: {}\n", result.playground_link));
+            }
+            output.push_str("\n");
+        }
+
+        output.push_str("💡 These examples might help with your problem, but you'll likely need to adapt them to your specific use case. ");
+        output.push_str("Don't assume they'll work exactly as-is for your requirements.");
+        
+        Ok(output)
     }
 }
 

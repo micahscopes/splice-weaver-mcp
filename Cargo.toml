@@ -21,6 +21,9 @@ zip = "0.6"
 flate2 = "1.0"
 tar = "0.4"
 clap = { version = "4.0", features = ["derive"] }
+# Full text search dependencies
+regex = "1.0"
+unicode-normalization = "0.1"
 
 [dev-dependencies]
 tokio-test = "0.4"
