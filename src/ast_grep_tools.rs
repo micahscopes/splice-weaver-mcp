@@ -2,10 +2,15 @@ use crate::binary_manager::BinaryManager;
 use crate::simple_search::SimpleSearchEngine;
 use anyhow::{anyhow, Result};
 use rmcp::model::*;
+use rust_embed::RustEmbed;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::process::Command as TokioCommand;
+
+#[derive(RustEmbed)]
+#[folder = "assets"]
+struct Assets;
 
 pub struct AstGrepTools {
     binary_manager: Arc<BinaryManager>,
@@ -17,6 +22,17 @@ pub struct AstGrepTools {
 struct Position {
     line: u32,
     column: u32,
+}
+
+fn get_embedded_catalog() -> Result<String> {
+    match Assets::get("catalog.json") {
+        Some(catalog_file) => {
+            std::str::from_utf8(&catalog_file.data)
+                .map(|s| s.to_string())
+                .map_err(|e| anyhow!("Failed to parse embedded catalog.json as UTF-8: {}", e))
+        }
+        None => Err(anyhow!("Embedded catalog.json not found"))
+    }
 }
 
 impl AstGrepTools {
@@ -34,13 +50,9 @@ impl AstGrepTools {
         let mut engine_guard = self.search_engine.lock().unwrap();
         
         if engine_guard.is_none() {
-            // Initialize search engine
-            let catalog_path = std::env::var("OUT_DIR")
-                .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
-                .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
-                .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
-            
-            let engine = SimpleSearchEngine::new(catalog_path.to_str().unwrap())?;
+            // Initialize search engine with embedded catalog
+            let catalog_content = get_embedded_catalog()?;
+            let engine = SimpleSearchEngine::from_content(&catalog_content)?;
             *engine_guard = Some(engine);
         }
         
@@ -1207,13 +1219,7 @@ Use this rule with the execute_rule tool:
 
     // Catalog-related methods
     fn load_catalog_resources(&self) -> Result<Vec<Resource>> {
-        let catalog_path = std::env::var("OUT_DIR")
-            .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
-            .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
-            .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
-        
-        let catalog_content = std::fs::read_to_string(&catalog_path)
-            .map_err(|e| anyhow!("Failed to read catalog.json from {}: {}", catalog_path.display(), e))?;
+        let catalog_content = get_embedded_catalog()?;
         
         let catalog: Value = serde_json::from_str(&catalog_content)
             .map_err(|e| anyhow!("Failed to parse catalog.json: {}", e))?;
@@ -1276,13 +1282,7 @@ Use this rule with the execute_rule tool:
     }
 
     fn get_catalog_example(&self, uri: &str) -> Result<String> {
-        let catalog_path = std::env::var("OUT_DIR")
-            .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
-            .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
-            .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
-        
-        let catalog_content = std::fs::read_to_string(&catalog_path)
-            .map_err(|_| anyhow!("Failed to read catalog.json"))?;
+        let catalog_content = get_embedded_catalog()?;
         
         let catalog: Value = serde_json::from_str(&catalog_content)?;
         let rule_id = uri.strip_prefix("ast-grep://catalog/").unwrap_or("");
@@ -1304,13 +1304,7 @@ Use this rule with the execute_rule tool:
 
     // Navigation-related methods
     fn load_navigation_resources(&self) -> Result<Vec<Resource>> {
-        let catalog_path = std::env::var("OUT_DIR")
-            .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
-            .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
-            .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
-        
-        let catalog_content = std::fs::read_to_string(&catalog_path)
-            .map_err(|e| anyhow!("Failed to read catalog.json for navigation from {}: {}", catalog_path.display(), e))?;
+        let catalog_content = get_embedded_catalog()?;
         
         let catalog: Value = serde_json::from_str(&catalog_content)
             .map_err(|e| anyhow!("Failed to parse catalog.json for navigation: {}", e))?;
@@ -1426,13 +1420,7 @@ Use this rule with the execute_rule tool:
     }
 
     fn get_navigation_content(&self, uri: &str) -> Result<String> {
-        let catalog_path = std::env::var("OUT_DIR")
-            .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
-            .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
-            .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
-        
-        let catalog_content = std::fs::read_to_string(&catalog_path)
-            .map_err(|_| anyhow!("Failed to read catalog.json"))?;
+        let catalog_content = get_embedded_catalog()?;
         
         let catalog: Value = serde_json::from_str(&catalog_content)?;
         
@@ -2770,12 +2758,7 @@ If your language isn't listed:
     }
 
     fn get_catalog_status(&self) -> CatalogStatus {
-        let catalog_path = std::env::var("OUT_DIR")
-            .map(|out_dir| std::path::Path::new(&out_dir).join("catalog.json"))
-            .or_else(|_| Ok::<_, anyhow::Error>(std::path::PathBuf::from("target/catalog.json")))
-            .unwrap_or_else(|_| std::path::PathBuf::from("catalog.json"));
-        
-        match std::fs::read_to_string(&catalog_path) {
+        match get_embedded_catalog() {
             Ok(content) => {
                 match serde_json::from_str::<Value>(&content) {
                     Ok(catalog) => {
@@ -2786,7 +2769,7 @@ If your language isn't listed:
                         
                         CatalogStatus {
                             loaded: true,
-                            path: catalog_path.to_string_lossy().to_string(),
+                            path: "embedded://catalog.json".to_string(),
                             example_count,
                             summary: format!("✅ Loaded {} catalog examples", example_count),
                             error: None,
@@ -2794,7 +2777,7 @@ If your language isn't listed:
                     }
                     Err(e) => CatalogStatus {
                         loaded: false,
-                        path: catalog_path.to_string_lossy().to_string(),
+                        path: "embedded://catalog.json".to_string(),
                         example_count: 0,
                         summary: "❌ Catalog file corrupt".to_string(),
                         error: Some(format!("JSON parse error: {}", e)),
@@ -2803,10 +2786,10 @@ If your language isn't listed:
             }
             Err(e) => CatalogStatus {
                 loaded: false,
-                path: catalog_path.to_string_lossy().to_string(),
+                path: "embedded://catalog.json".to_string(),
                 example_count: 0,
-                summary: "❌ Catalog file not found".to_string(),
-                error: Some(format!("File error: {}", e)),
+                summary: "❌ Embedded catalog not available".to_string(),
+                error: Some(format!("Embedded catalog error: {}", e)),
             }
         }
     }

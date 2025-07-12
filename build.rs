@@ -9,8 +9,13 @@ use serde_json::{json, Value};
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let catalog_path = Path::new(&out_dir).join("catalog.json");
+    // Create assets directory for rust-embed
+    let assets_dir = Path::new("assets");
+    if !assets_dir.exists() {
+        fs::create_dir_all(assets_dir).expect("Failed to create assets directory");
+    }
+    
+    let catalog_path = assets_dir.join("catalog.json");
     
     // Extract catalog examples and write to JSON
     match extract_catalog_examples() {

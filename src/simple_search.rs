@@ -38,7 +38,11 @@ impl SimpleSearchEngine {
         let catalog_content = std::fs::read_to_string(catalog_path)
             .map_err(|e| anyhow!("Failed to read catalog at {}: {}", catalog_path, e))?;
         
-        let catalog: Value = serde_json::from_str(&catalog_content)?;
+        Self::from_content(&catalog_content)
+    }
+    
+    pub fn from_content(catalog_content: &str) -> Result<Self> {
+        let catalog: Value = serde_json::from_str(catalog_content)?;
         let examples_json = catalog["examples"].as_array()
             .ok_or_else(|| anyhow!("No examples found in catalog"))?;
 

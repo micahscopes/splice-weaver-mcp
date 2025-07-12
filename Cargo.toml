@@ -21,6 +21,7 @@ zip = "0.6"
 flate2 = "1.0"
 tar = "0.4"
 clap = { version = "4.0", features = ["derive"] }
+rust-embed = "8.0"
 # Full text search dependencies
 regex = "1.0"
 unicode-normalization = "0.1"
