@@ -146,7 +146,7 @@ impl Default for BenchmarkConfiguration {
             iterations: 10,
             timeout_seconds: 30,
             models: vec![ModelConfig {
-                name: "gpt-3.5-turbo".to_string(),
+                name: "mistralai/devstral-small-2507".to_string(),
                 endpoint: "http://localhost:1234/v1".to_string(),
                 api_key: None,
                 parameters: HashMap::new(),

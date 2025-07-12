@@ -22,7 +22,7 @@ impl Default for EvaluationClientConfig {
         Self {
             llm_endpoint: "http://localhost:1234/v1".to_string(),
             llm_api_key: None,
-            model_name: "gpt-3.5-turbo".to_string(),
+            model_name: "mistralai/devstral-small-2507".to_string(),
             server_command: "cargo".to_string(),
             server_args: vec!["run".to_string()],
             timeout_seconds: 30,
