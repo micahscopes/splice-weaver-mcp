@@ -10,11 +10,7 @@ use tracing::{info, error};
 mod ast_grep_tools;
 use ast_grep_tools::AstGrepTools;
 
-mod resources;
-use resources::ResourceProvider;
-
-mod prompts;
-use prompts::PromptManager;
+// All functionality now handled by AstGrepTools
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -35,16 +31,12 @@ async fn main() -> Result<()> {
 #[derive(Clone)]
 pub struct AstGrepServer {
     tools: Arc<AstGrepTools>,
-    resources: Arc<ResourceProvider>,
-    prompts: Arc<PromptManager>,
 }
 
 impl AstGrepServer {
     pub fn new() -> Self {
         let tools = Arc::new(AstGrepTools::new());
-        let resources = Arc::new(ResourceProvider::new());
-        let prompts = Arc::new(PromptManager::new());
-        Self { tools, resources, prompts }
+        Self { tools }
     }
 }
 
@@ -61,7 +53,7 @@ impl ServerHandler for AstGrepServer {
                 name: "mcp-ast-grep".to_string(),
                 version: "0.1.0".to_string(),
             },
-            instructions: Some("Enhanced ast-grep server with Resources and Prompts for better small LLM support".to_string()),
+            instructions: Some("Minimal ast-grep MCP server with scope navigation and rule execution tools".to_string()),
         }
     }
 
@@ -72,74 +64,63 @@ impl ServerHandler for AstGrepServer {
     ) -> Result<ListToolsResult, rmcp::Error> {
         let tools = vec![
             Tool::new(
-                "ast_grep_search",
-                "Search for AST patterns in code using ast-grep",
+                "find_scope",
+                "Find containing scope around a position using relational rules",
                 serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(serde_json::json!({
                     "type": "object",
                     "properties": {
-                        "pattern": {
+                        "code": {
                             "type": "string",
-                            "description": "The AST pattern to search for"
+                            "description": "Code to search within"
                         },
                         "language": {
                             "type": "string",
                             "description": "Programming language (e.g., 'javascript', 'python', 'rust')"
                         },
-                        "path": {
+                        "position": {
+                            "type": "object",
+                            "properties": {
+                                "line": {"type": "number", "description": "Line number (1-indexed)"},
+                                "column": {"type": "number", "description": "Column number (1-indexed)"}
+                            },
+                            "required": ["line", "column"],
+                            "description": "Cursor position to find scope around"
+                        },
+                        "scope_rule": {
                             "type": "string",
-                            "description": "Path to search in (file or directory)"
+                            "description": "YAML rule defining the scope to find (e.g., function, class, loop)"
                         }
                     },
-                    "required": ["pattern", "language", "path"]
+                    "required": ["code", "language", "position", "scope_rule"]
                 })).unwrap()
             ),
             Tool::new(
-                "ast_grep_replace",
-                "Replace AST patterns in code using ast-grep",
+                "execute_rule",
+                "Execute ast-grep rule for search, replace, or scan operations",
                 serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(serde_json::json!({
                     "type": "object",
                     "properties": {
-                        "pattern": {
+                        "rule_config": {
                             "type": "string",
-                            "description": "The AST pattern to search for"
+                            "description": "Complete YAML rule configuration"
                         },
-                        "replacement": {
+                        "target": {
                             "type": "string",
-                            "description": "The replacement pattern"
+                            "description": "File path or directory to apply rule to"
                         },
-                        "language": {
+                        "operation": {
                             "type": "string",
-                            "description": "Programming language (e.g., 'javascript', 'python', 'rust')"
-                        },
-                        "path": {
-                            "type": "string",
-                            "description": "Path to search in (file or directory)"
+                            "enum": ["search", "replace", "scan"],
+                            "description": "Operation to perform",
+                            "default": "search"
                         },
                         "dry_run": {
                             "type": "boolean",
-                            "description": "If true, show what would be changed without applying changes",
+                            "description": "If true, preview changes without applying",
                             "default": true
                         }
                     },
-                    "required": ["pattern", "replacement", "language", "path"]
-                })).unwrap()
-            ),
-            Tool::new(
-                "ast_grep_scan",
-                "Scan code for potential issues using ast-grep rules",
-                serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(serde_json::json!({
-                    "type": "object",
-                    "properties": {
-                        "rule": {
-                            "type": "string",
-                            "description": "The ast-grep rule to apply (YAML format)"
-                        },
-                        "path": {
-                            "type": "string",
-                            "description": "Path to scan (file or directory)"
-                        }
-                    },
-                    "required": ["rule", "path"]
+                    "required": ["rule_config", "target"]
                 })).unwrap()
             ),
         ];
@@ -167,7 +148,7 @@ impl ServerHandler for AstGrepServer {
         _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, rmcp::Error> {
-        let resources = self.resources.list_resources();
+        let resources = self.tools.list_resources();
         Ok(ListResourcesResult::with_all_items(resources))
     }
 
@@ -176,9 +157,9 @@ impl ServerHandler for AstGrepServer {
         request: ReadResourceRequestParam,
         _context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, rmcp::Error> {
-        match self.resources.get_resource(&request.uri) {
+        match self.tools.read_resource(&request.uri) {
             Ok(content) => Ok(ReadResourceResult {
-                contents: vec![ResourceContents::text(content.to_string(), request.uri.clone())]
+                contents: vec![ResourceContents::text(content, request.uri.clone())]
             }),
             Err(e) => Err(rmcp::Error::invalid_params(format!("Resource not found: {}", e), None)),
         }
@@ -189,7 +170,7 @@ impl ServerHandler for AstGrepServer {
         _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, rmcp::Error> {
-        let prompts = self.prompts.list_prompts();
+        let prompts = self.tools.list_prompts();
         Ok(ListPromptsResult::with_all_items(prompts))
     }
 
@@ -200,7 +181,7 @@ impl ServerHandler for AstGrepServer {
     ) -> Result<GetPromptResult, rmcp::Error> {
         let arguments = request.arguments.unwrap_or_default();
         let arguments_hashmap: std::collections::HashMap<String, serde_json::Value> = arguments.into_iter().collect();
-        match self.prompts.get_prompt(&request.name, arguments_hashmap) {
+        match self.tools.get_prompt(&request.name, arguments_hashmap) {
             Ok(content) => Ok(GetPromptResult {
                 description: None,
                 messages: vec![PromptMessage::new_text(PromptMessageRole::User, content)]
