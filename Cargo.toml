@@ -25,6 +25,10 @@ clap = { version = "4.0", features = ["derive"] }
 [dev-dependencies]
 tokio-test = "0.4"
 
+# Test configuration for faster execution
+[profile.test]
+opt-level = 1
+
 [lib]
 name = "mcp_ast_grep"
 path = "src/lib.rs"
