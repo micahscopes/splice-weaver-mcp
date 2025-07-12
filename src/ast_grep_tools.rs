@@ -2876,6 +2876,78 @@ If your language isn't listed:
     fn get_catalog_error_content(&self) -> Result<String> {
         Ok("⚠️ Catalog resources failed to load. This usually means the catalog file is missing or corrupt. Check ast-grep://catalog-status for details.".to_string())
     }
+
+    async fn similarity_search_tool(&self, args: Value) -> Result<String> {
+        let pattern = args["pattern"].as_str().ok_or(anyhow!("Missing pattern"))?;
+        let limit = args["limit"].as_u64().unwrap_or(10) as usize;
+        
+        let results = self.with_search_engine(|engine| {
+            engine.similarity_search(pattern, limit)
+        })?;
+
+        if results.is_empty() {
+            return Ok("No similar patterns found. Try using simpler or more general terms.".to_string());
+        }
+
+        let mut output = format!("Found {} similar patterns:\n\n", results.len());
+        
+        for (i, result) in results.iter().enumerate() {
+            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
+            output.push_str(&format!("   Similarity: {:.2}\n", result.score));
+            output.push_str(&format!("   Description: {}\n", result.description));
+            if !result.yaml_content.is_empty() {
+                output.push_str(&format!("   YAML Rule: {}...\n", 
+                    result.yaml_content.lines().next().unwrap_or("").chars().take(50).collect::<String>()));
+            }
+            output.push_str("\n");
+        }
+
+        output.push_str("⚠️ Note: Similarity is based on text matching - review each example for relevance.");
+        Ok(output)
+    }
+
+    async fn suggest_examples(&self, args: Value) -> Result<String> {
+        let problem_description = args["description"].as_str().ok_or(anyhow!("Missing description"))?;
+        let language = args["language"].as_str().unwrap_or("any");
+        let limit = args["limit"].as_u64().unwrap_or(5) as usize;
+        
+        // Use similarity search with the problem description
+        let results = self.with_search_engine(|engine| {
+            let lang_filter = if language == "any" { None } else { Some(language) };
+            // First try regular search with the description
+            let search_results = engine.search(problem_description, lang_filter, limit);
+            if search_results.as_ref().map_or(true, |r| r.is_empty()) {
+                // Fall back to similarity search
+                engine.similarity_search(problem_description, limit)
+            } else {
+                search_results
+            }
+        })?;
+
+        if results.is_empty() {
+            return Ok("No relevant examples found for your problem description. Try describing your problem with different terms or be more specific about what you're trying to achieve.".to_string());
+        }
+
+        let mut output = format!("Based on your problem description, here are {} potentially relevant examples:\n\n", results.len());
+        
+        for (i, result) in results.iter().enumerate() {
+            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
+            output.push_str(&format!("   Relevance: {:.2}\n", result.score));
+            output.push_str(&format!("   What it does: {}\n", result.description));
+            if result.has_fix {
+                output.push_str("   ✅ Includes code transformation\n");
+            }
+            if !result.playground_link.is_empty() {
+                output.push_str(&format!("   Try it: {}\n", result.playground_link));
+            }
+            output.push_str("\n");
+        }
+
+        output.push_str("💡 These examples might help with your problem, but you'll likely need to adapt them to your specific use case. ");
+        output.push_str("Don't assume they'll work exactly as-is for your requirements.");
+        
+        Ok(output)
+    }
 }
 
 #[derive(Debug)]
@@ -2982,115 +3054,6 @@ mod tests {
         
         assert!(emoji_resources > 0, "Should have resources with emoji names for better UX");
     }
-    
-    // New MCP tools for search functionality
-    async fn search_examples(&self, args: Value) -> Result<String> {
-        let query = args["query"].as_str().ok_or(anyhow!("Missing query"))?;
-        let language = args["language"].as_str().unwrap_or("any");
-        let limit = args["limit"].as_u64().unwrap_or(10) as usize;
-        
-        let results = self.with_search_engine(|engine| {
-            let lang_filter = if language == "any" { None } else { Some(language) };
-            engine.search(query, lang_filter, limit)
-        })?;
-
-        if results.is_empty() {
-            return Ok(format!(
-                "No examples found matching '{}' in {} language. Try broader search terms or search in 'any' language.",
-                query, language
-            ));
-        }
-
-        let mut output = format!("Found {} examples for '{}' in {}:\n\n", results.len(), query, language);
-        
-        for (i, result) in results.iter().enumerate() {
-            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
-            output.push_str(&format!("   Description: {}\n", result.description));
-            if result.has_fix {
-                output.push_str("   ✅ Has Fix\n");
-            }
-            if !result.features.is_empty() {
-                output.push_str(&format!("   Features: {}\n", result.features.join(", ")));
-            }
-            output.push_str("\n");
-        }
-
-        output.push_str("⚠️ Note: These are starting points - adapt them to your specific requirements.");
-        Ok(output)
-    }
-
-    async fn similarity_search_tool(&self, args: Value) -> Result<String> {
-        let pattern = args["pattern"].as_str().ok_or(anyhow!("Missing pattern"))?;
-        let limit = args["limit"].as_u64().unwrap_or(10) as usize;
-        
-        let results = self.with_search_engine(|engine| {
-            engine.similarity_search(pattern, limit)
-        })?;
-
-        if results.is_empty() {
-            return Ok("No similar patterns found. Try using simpler or more general terms.".to_string());
-        }
-
-        let mut output = format!("Found {} similar patterns:\n\n", results.len());
-        
-        for (i, result) in results.iter().enumerate() {
-            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
-            output.push_str(&format!("   Similarity: {:.2}\n", result.score));
-            output.push_str(&format!("   Description: {}\n", result.description));
-            if !result.yaml_content.is_empty() {
-                output.push_str(&format!("   YAML Rule: {}...\n", 
-                    result.yaml_content.lines().next().unwrap_or("").chars().take(50).collect::<String>()));
-            }
-            output.push_str("\n");
-        }
-
-        output.push_str("⚠️ Note: Similarity is based on text matching - review each example for relevance.");
-        Ok(output)
-    }
-
-    async fn suggest_examples(&self, args: Value) -> Result<String> {
-        let problem_description = args["description"].as_str().ok_or(anyhow!("Missing description"))?;
-        let language = args["language"].as_str().unwrap_or("any");
-        let limit = args["limit"].as_u64().unwrap_or(5) as usize;
-        
-        // Use similarity search with the problem description
-        let results = self.with_search_engine(|engine| {
-            let lang_filter = if language == "any" { None } else { Some(language) };
-            // First try regular search with the description
-            let search_results = engine.search(problem_description, lang_filter, limit);
-            if search_results.as_ref().map_or(true, |r| r.is_empty()) {
-                // Fall back to similarity search
-                engine.similarity_search(problem_description, limit)
-            } else {
-                search_results
-            }
-        })?;
-
-        if results.is_empty() {
-            return Ok("No relevant examples found for your problem description. Try describing your problem with different terms or be more specific about what you're trying to achieve.".to_string());
-        }
-
-        let mut output = format!("Based on your problem description, here are {} potentially relevant examples:\n\n", results.len());
-        
-        for (i, result) in results.iter().enumerate() {
-            output.push_str(&format!("{}. {} ({})\n", i + 1, result.title, result.language));
-            output.push_str(&format!("   Relevance: {:.2}\n", result.score));
-            output.push_str(&format!("   What it does: {}\n", result.description));
-            if result.has_fix {
-                output.push_str("   ✅ Includes code transformation\n");
-            }
-            if !result.playground_link.is_empty() {
-                output.push_str(&format!("   Try it: {}\n", result.playground_link));
-            }
-            output.push_str("\n");
-        }
-
-        output.push_str("💡 These examples might help with your problem, but you'll likely need to adapt them to your specific use case. ");
-        output.push_str("Don't assume they'll work exactly as-is for your requirements.");
-        
-        Ok(output)
-    }
-
 }
 
 // Helper trait for string formatting
