@@ -21,7 +21,7 @@ fn main() {
                      catalog["examples"].as_array().map_or(0, |arr| arr.len()));
         }
         Err(e) => {
-            println!("cargo:warning=Failed to extract catalog examples: {}", e);
+            println!("cargo:warning=Failed to extract catalog examples: {e}");
             // Create empty catalog on failure
             let empty_catalog = json!({
                 "version": "1.0",
@@ -44,7 +44,7 @@ fn extract_catalog_examples() -> Result<Value, Box<dyn std::error::Error>> {
     if !website_path.exists() {
         println!("cargo:warning=Cloning ast-grep.github.io repository...");
         let output = std::process::Command::new("git")
-            .args(&["clone", "https://github.com/ast-grep/ast-grep.github.io.git"])
+            .args(["clone", "https://github.com/ast-grep/ast-grep.github.io.git"])
             .arg(&website_path)
             .output()?;
         

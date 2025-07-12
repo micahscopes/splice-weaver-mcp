@@ -230,6 +230,36 @@ impl AstGrepTools {
                 },
                 None,
             ),
+            Resource::new(
+                RawResource {
+                    uri: "ast-grep://examples-by-language".to_string(),
+                    name: "Examples by Language".to_string(),
+                    description: Some("Small-LLM-friendly examples organized by programming language with common patterns".to_string()),
+                    mime_type: Some("text/markdown".to_string()),
+                    size: None,
+                },
+                None,
+            ),
+            Resource::new(
+                RawResource {
+                    uri: "ast-grep://pattern-syntax".to_string(),
+                    name: "Pattern Syntax Reference".to_string(),
+                    description: Some("Concise pattern syntax guide optimized for small LLMs with clear examples".to_string()),
+                    mime_type: Some("text/markdown".to_string()),
+                    size: None,
+                },
+                None,
+            ),
+            Resource::new(
+                RawResource {
+                    uri: "ast-grep://rule-composition".to_string(),
+                    name: "Rule Composition Guide".to_string(),
+                    description: Some("Small-LLM-friendly guide for composing complex rules from simple patterns".to_string()),
+                    mime_type: Some("text/markdown".to_string()),
+                    size: None,
+                },
+                None,
+            ),
         ];
 
         // Add dynamic navigation resources
@@ -254,6 +284,9 @@ impl AstGrepTools {
             "ast-grep://node-kinds" => self.get_node_kinds(),
             "ast-grep://cheatsheet/rules" => self.get_cheatsheet_rules(),
             "ast-grep://cheatsheet/yaml" => self.get_cheatsheet_yaml(),
+            "ast-grep://examples-by-language" => self.get_examples_by_language(),
+            "ast-grep://pattern-syntax" => self.get_pattern_syntax(),
+            "ast-grep://rule-composition" => self.get_rule_composition(),
             _ => {
                 // Check if it's a catalog resource
                 if uri.starts_with("ast-grep://catalog/") {
@@ -1056,7 +1089,7 @@ Use this rule with the execute_rule tool:
         if let Some(examples) = catalog["examples"].as_array() {
             for (index, example) in examples.iter().enumerate() {
                 if let Some(content) = example["content"].as_str() {
-                    let default_id = format!("example-{}", index);
+                    let default_id = format!("example-{index}");
                     let id = example["id"].as_str().unwrap_or(&default_id);
                     let language = example["language"].as_str().unwrap_or("unknown");
                     let message = example["message"].as_str().unwrap_or("No description");
@@ -1064,9 +1097,9 @@ Use this rule with the execute_rule tool:
                     
                     resources.push(Resource::new(
                         RawResource {
-                            uri: format!("ast-grep://catalog/{}", id),
-                            name: format!("Catalog Rule: {}", id),
-                            description: Some(format!("{} (Language: {}, Source: {})", message, language, source_file)),
+                            uri: format!("ast-grep://catalog/{id}"),
+                            name: format!("Catalog Rule: {id}"),
+                            description: Some(format!("{message} (Language: {language}, Source: {source_file})")),
                             mime_type: Some("text/yaml".to_string()),
                             size: Some(content.len() as u32),
                         },
@@ -1093,7 +1126,7 @@ Use this rule with the execute_rule tool:
 
         if let Some(examples) = catalog["examples"].as_array() {
             for (index, example) in examples.iter().enumerate() {
-                let default_id = format!("example-{}", index);
+                let default_id = format!("example-{index}");
                 let id = example["id"].as_str().unwrap_or(&default_id);
                 if id == rule_id {
                     if let Some(content) = example["content"].as_str() {
@@ -1153,9 +1186,9 @@ Use this rule with the execute_rule tool:
                 
                 resources.push(Resource::new(
                     RawResource {
-                        uri: format!("ast-grep://navigation/language/{}", language),
+                        uri: format!("ast-grep://navigation/language/{language}"),
                         name: format!("Catalog: {} Examples", language.to_uppercase()),
-                        description: Some(format!("All {} catalog examples for {} programming language", count, language)),
+                        description: Some(format!("All {count} catalog examples for {language} programming language")),
                         mime_type: Some("application/json".to_string()),
                         size: None,
                     },
@@ -1168,15 +1201,15 @@ Use this rule with the execute_rule tool:
                 let count = examples.iter()
                     .filter(|ex| {
                         ex["features"].as_array()
-                            .map_or(false, |arr| arr.iter().any(|f| f.as_str() == Some(&feature)))
+                            .is_some_and(|arr| arr.iter().any(|f| f.as_str() == Some(&feature)))
                     })
                     .count();
                 
                 resources.push(Resource::new(
                     RawResource {
-                        uri: format!("ast-grep://navigation/feature/{}", feature),
-                        name: format!("Catalog: {} Feature", feature),
-                        description: Some(format!("All {} examples using the '{}' feature", count, feature)),
+                        uri: format!("ast-grep://navigation/feature/{feature}"),
+                        name: format!("Catalog: {feature} Feature"),
+                        description: Some(format!("All {count} examples using the '{feature}' feature")),
                         mime_type: Some("application/json".to_string()),
                         size: None,
                     },
@@ -1194,7 +1227,7 @@ Use this rule with the execute_rule tool:
                     RawResource {
                         uri: "ast-grep://navigation/has-fix".to_string(),
                         name: "Catalog: Examples with Fixes".to_string(),
-                        description: Some(format!("All {} examples that include code transformations/fixes", fix_count)),
+                        description: Some(format!("All {fix_count} examples that include code transformations/fixes")),
                         mime_type: Some("application/json".to_string()),
                         size: None,
                     },
@@ -1207,15 +1240,15 @@ Use this rule with the execute_rule tool:
                 let count = examples.iter()
                     .filter(|ex| {
                         ex["rules"].as_array()
-                            .map_or(false, |arr| arr.iter().any(|r| r.as_str() == Some(&rule_type)))
+                            .is_some_and(|arr| arr.iter().any(|r| r.as_str() == Some(&rule_type)))
                     })
                     .count();
                 
                 resources.push(Resource::new(
                     RawResource {
-                        uri: format!("ast-grep://navigation/rule/{}", rule_type),
-                        name: format!("Catalog: {} Rules", rule_type),
-                        description: Some(format!("All {} examples using '{}' rule type", count, rule_type)),
+                        uri: format!("ast-grep://navigation/rule/{rule_type}"),
+                        name: format!("Catalog: {rule_type} Rules"),
+                        description: Some(format!("All {count} examples using '{rule_type}' rule type")),
                         mime_type: Some("application/json".to_string()),
                         size: None,
                     },
@@ -1265,7 +1298,7 @@ Use this rule with the execute_rule tool:
                 let filtered: Vec<&Value> = examples.iter()
                     .filter(|ex| {
                         ex["features"].as_array()
-                            .map_or(false, |arr| arr.iter().any(|f| f.as_str() == Some(feature)))
+                            .is_some_and(|arr| arr.iter().any(|f| f.as_str() == Some(feature)))
                     })
                     .collect();
                 
@@ -1305,7 +1338,7 @@ Use this rule with the execute_rule tool:
                 let filtered: Vec<&Value> = examples.iter()
                     .filter(|ex| {
                         ex["rules"].as_array()
-                            .map_or(false, |arr| arr.iter().any(|r| r.as_str() == Some(rule_type)))
+                            .is_some_and(|arr| arr.iter().any(|r| r.as_str() == Some(rule_type)))
                     })
                     .collect();
                 
@@ -1324,5 +1357,567 @@ Use this rule with the execute_rule tool:
         }
 
         Err(anyhow!("Navigation resource not found: {}", uri))
+    }
+
+    fn get_examples_by_language(&self) -> Result<String> {
+        Ok(r#"# Examples by Language
+
+Quick reference of common ast-grep patterns organized by programming language.
+
+## JavaScript/TypeScript
+
+### Variable Declarations
+```yaml
+# Find var declarations
+rule:
+  pattern: "var $VAR = $VALUE"
+
+# Find all variable declarations (var, let, const)
+rule:
+  any:
+    - pattern: "var $VAR = $VALUE"
+    - pattern: "let $VAR = $VALUE"
+    - pattern: "const $VAR = $VALUE"
+```
+
+### Function Patterns
+```yaml
+# Function declarations
+rule:
+  pattern: "function $NAME($PARAMS) { $BODY }"
+
+# Arrow functions
+rule:
+  pattern: "($PARAMS) => $BODY"
+
+# Method calls
+rule:
+  pattern: "$OBJECT.$METHOD($ARGS)"
+```
+
+### Common Patterns
+```yaml
+# Console statements
+rule:
+  pattern: "console.$METHOD($ARGS)"
+
+# Async/await
+rule:
+  pattern: "await $EXPR"
+
+# Import statements
+rule:
+  pattern: "import $ITEMS from '$MODULE'"
+```
+
+## Python
+
+### Function Definitions
+```yaml
+# Function definitions
+rule:
+  pattern: "def $NAME($PARAMS): $BODY"
+
+# Class definitions
+rule:
+  pattern: "class $NAME: $BODY"
+
+# Method definitions
+rule:
+  pattern: "def $NAME(self, $PARAMS): $BODY"
+```
+
+### Common Patterns
+```yaml
+# Print statements
+rule:
+  pattern: "print($ARGS)"
+
+# If statements
+rule:
+  pattern: "if $CONDITION: $BODY"
+
+# For loops
+rule:
+  pattern: "for $VAR in $ITER: $BODY"
+```
+
+## Rust
+
+### Function Items
+```yaml
+# Function definitions
+rule:
+  pattern: "fn $NAME($PARAMS) -> $RET { $BODY }"
+
+# Public functions
+rule:
+  pattern: "pub fn $NAME($PARAMS) -> $RET { $BODY }"
+
+# Method definitions
+rule:
+  pattern: "impl $TYPE { fn $NAME($PARAMS) -> $RET { $BODY } }"
+```
+
+### Error Handling
+```yaml
+# Match expressions
+rule:
+  pattern: "match $EXPR { $ARMS }"
+
+# Result handling
+rule:
+  pattern: "$EXPR?"
+
+# Unwrap calls
+rule:
+  pattern: "$EXPR.unwrap()"
+```
+
+## Java
+
+### Class Elements
+```yaml
+# Class declarations
+rule:
+  pattern: "class $NAME { $BODY }"
+
+# Method declarations
+rule:
+  pattern: "public $RET $NAME($PARAMS) { $BODY }"
+
+# Field declarations
+rule:
+  pattern: "private $TYPE $NAME;"
+```
+
+### Common Patterns
+```yaml
+# System.out.println
+rule:
+  pattern: "System.out.println($ARGS)"
+
+# Try-catch blocks
+rule:
+  pattern: "try { $BODY } catch ($EX) { $HANDLER }"
+```
+
+## Go
+
+### Function Definitions
+```yaml
+# Function declarations
+rule:
+  pattern: "func $NAME($PARAMS) $RET { $BODY }"
+
+# Method declarations
+rule:
+  pattern: "func ($RECV) $NAME($PARAMS) $RET { $BODY }"
+```
+
+### Error Handling
+```yaml
+# Error checking
+rule:
+  pattern: "if err != nil { $BODY }"
+
+# Function calls with error
+rule:
+  pattern: "$VAR, err := $CALL"
+```
+
+## Usage Tips
+
+1. Use `$$$` for multiple items: `console.log($$$)` matches any number of arguments
+2. Use `$$` for statement sequences: `{ $$ }` matches any block content
+3. Combine with constraints to be more specific:
+   ```yaml
+   rule:
+     pattern: "$VAR = $VALUE"
+   constraints:
+     VAR: { regex: "^[A-Z_]+$" }  # Only CONSTANTS
+   ```
+"#.to_string())
+    }
+
+    fn get_pattern_syntax(&self) -> Result<String> {
+        Ok(r#"# Pattern Syntax Reference
+
+Concise guide to ast-grep pattern syntax for quick reference.
+
+## Meta-variables
+
+### Single Node Variables
+- `$VAR` - Matches exactly one AST node
+- `$_` - Anonymous variable (matches one node, don't capture)
+
+### Multi-Node Variables  
+- `$$$VAR` - Matches zero or more nodes in sequence
+- `$$$` - Anonymous multi-match
+
+### Statement Variables
+- `$$VAR` - Matches zero or more statements
+- `$$` - Anonymous statement sequence
+
+## Basic Patterns
+
+### Exact Match
+```yaml
+pattern: "console.log('hello')"  # Matches exactly this code
+```
+
+### Variable Capture
+```yaml
+pattern: "console.log($MSG)"     # Captures the argument as $MSG
+```
+
+### Multiple Arguments
+```yaml
+pattern: "console.log($$$ARGS)"  # Captures all arguments
+```
+
+### Method Calls
+```yaml
+pattern: "$OBJ.$METHOD($$$)"     # Any method call on any object
+```
+
+## Pattern Types
+
+### Expression Patterns
+- `$VAR = $VALUE` - Assignment
+- `$FUNC($$$)` - Function call
+- `$OBJ.$PROP` - Property access
+- `$A + $B` - Binary operation
+
+### Statement Patterns
+- `if ($COND) { $$ }` - If statement
+- `for ($INIT; $COND; $UPDATE) { $$ }` - For loop
+- `try { $$ } catch ($E) { $$ }` - Try-catch
+
+### Declaration Patterns
+- `function $NAME($$$) { $$ }` - Function declaration
+- `class $NAME { $$ }` - Class declaration
+- `const $VAR = $VALUE` - Variable declaration
+
+## Advanced Features
+
+### Context Patterns
+When a pattern is ambiguous, use context:
+```yaml
+pattern:
+  context: "class Foo { bar() }"
+  selector: method_definition
+```
+
+### Whitespace Handling
+Patterns ignore most whitespace differences:
+```yaml
+pattern: "if($COND){$$}"  # Matches "if (cond) { ... }"
+```
+
+### Comments
+Patterns typically ignore comments:
+```yaml
+pattern: "$VAR = $VALUE"  # Matches with or without comments
+```
+
+## Language-Specific Notes
+
+### JavaScript/TypeScript
+- Use `function` for function declarations
+- Use `=>` for arrow functions
+- Template literals: `` `${}` ``
+
+### Python
+- Indentation matters in patterns
+- Use `:` for statement endings
+- `def` for functions, `class` for classes
+
+### Rust
+- Use `->` for return types
+- Match expressions: `match $EXPR { $$ }`
+- Lifetime annotations: `&'$LT $TYPE`
+
+### Java
+- Access modifiers: `public`, `private`, etc.
+- Generics: `List<$TYPE>`
+- Annotations: `@$ANNOTATION`
+
+## Common Mistakes
+
+❌ **Don't** use regex in patterns:
+```yaml
+pattern: "console\.log\(.*\)"  # This won't work
+```
+
+✅ **Do** use meta-variables:
+```yaml
+pattern: "console.log($$$)"    # This works
+```
+
+❌ **Don't** be too specific with whitespace:
+```yaml
+pattern: "if ( $COND ) { $$ }"  # Too restrictive
+```
+
+✅ **Do** let ast-grep handle whitespace:
+```yaml
+pattern: "if ($COND) { $$ }"    # More flexible
+```
+
+## Quick Reference
+
+| Pattern | Matches | Example |
+|---------|---------|---------|
+| `$VAR` | Single node | Variable, literal, expression |
+| `$$$` | Multiple nodes | Function arguments, array elements |
+| `$$` | Statements | Block contents, statement sequences |
+| `$_.method()` | Anonymous match | Any object's method call |
+| `$$$_` | Anonymous multi | Any number of items (don't capture) |
+"#.to_string())
+    }
+
+    fn get_rule_composition(&self) -> Result<String> {
+        Ok(r#"# Rule Composition Guide
+
+Learn to build complex ast-grep rules by combining simple patterns.
+
+## Building Blocks
+
+### 1. Atomic Rules
+Start with simple, single-purpose patterns:
+```yaml
+# Find console.log calls
+basic_console:
+  pattern: "console.log($$$)"
+
+# Find function declarations  
+basic_function:
+  pattern: "function $NAME($$$) { $$ }"
+```
+
+### 2. Relational Rules
+Add context using relationships:
+```yaml
+# Console.log inside functions
+console_in_function:
+  all:
+    - pattern: "console.log($$$)"
+    - inside:
+        pattern: "function $NAME($$$) { $$ }"
+```
+
+### 3. Composite Rules
+Combine multiple conditions:
+```yaml
+# Complex condition
+complex_rule:
+  all:
+    - pattern: "$VAR = $VALUE"
+    - inside: { kind: function_declaration }
+    - not: { inside: { kind: arrow_function } }
+```
+
+## Composition Patterns
+
+### AND Logic (all)
+All conditions must match:
+```yaml
+rule:
+  all:
+    - pattern: "console.log($MSG)"
+    - inside: { pattern: "function $NAME($$$) { $$ }" }
+    - not: { pattern: "console.log('debug')" }
+# Finds console.log in functions, but not debug messages
+```
+
+### OR Logic (any)
+At least one condition must match:
+```yaml
+rule:
+  any:
+    - pattern: "console.log($$$)"
+    - pattern: "console.error($$$)"
+    - pattern: "console.warn($$$)"
+# Finds any console method call
+```
+
+### NOT Logic (not)
+Exclude specific patterns:
+```yaml
+rule:
+  all:
+    - pattern: "$FUNC($$$)"
+    - not: { pattern: "console.$METHOD($$$)" }
+# Function calls except console methods
+```
+
+## Common Composition Recipes
+
+### 1. Scope-Limited Search
+Find patterns within specific scopes:
+```yaml
+# Variables declared in constructors
+rule:
+  all:
+    - pattern: "this.$PROP = $VALUE"
+    - inside:
+        pattern: "constructor($$$) { $$ }"
+```
+
+### 2. Multi-Level Nesting
+Navigate through multiple scope levels:
+```yaml
+# Methods that use console in classes
+rule:
+  all:
+    - pattern: "console.log($$$)"
+    - inside: { kind: method_definition }
+    - inside: { kind: class_declaration }
+```
+
+### 3. Excluding Nested Scopes
+Find patterns at exact scope level:
+```yaml
+# Direct class methods (not nested functions)
+rule:
+  all:
+    - pattern: "function $NAME($$$) { $$ }"
+    - inside: { kind: class_declaration }
+    - not:
+        inside:
+          all:
+            - kind: function_declaration
+            - inside: { kind: class_declaration }
+```
+
+### 4. Conditional Transformations
+Transform only when conditions are met:
+```yaml
+# Convert var to const only in functions
+rule:
+  all:
+    - pattern: "var $VAR = $VALUE"
+    - inside: { kind: function_declaration }
+    - has: { pattern: "$VAR" }  # Variable is used
+fix: "const $VAR = $VALUE"
+```
+
+## Advanced Compositions
+
+### Utility Rules for Modularity
+Break complex rules into reusable parts:
+```yaml
+utils:
+  is_react_component:
+    any:
+      - has: { pattern: "return <$TAG" }
+      - has: { pattern: "React.createElement" }
+  
+  is_async_function:
+    any:
+      - pattern: "async function $NAME($$$) { $$ }"
+      - pattern: "async ($$$) => $BODY"
+
+rules:
+  - id: no-console-in-react-async
+    rule:
+      all:
+        - pattern: "console.log($$$)"
+        - inside: { matches: is_react_component }
+        - inside: { matches: is_async_function }
+```
+
+### Constraint-Based Refinement
+Use constraints to refine matches:
+```yaml
+rule:
+  pattern: "$OBJ.$METHOD($$$)"
+constraints:
+  OBJ: { regex: "^[A-Z]" }      # Capitalized objects only
+  METHOD: { regex: "^get" }     # Getter methods only
+```
+
+### Sequential Patterns
+Find patterns that follow specific sequences:
+```yaml
+# Variable declared then immediately used
+rule:
+  all:
+    - pattern: "const $VAR = $VALUE"
+    - follows:
+        pattern: "$VAR.$METHOD($$$)"
+```
+
+## Building Strategy
+
+### 1. Start Simple
+Begin with a basic pattern:
+```yaml
+pattern: "console.log($$$)"
+```
+
+### 2. Add Context
+Specify where it should appear:
+```yaml
+all:
+  - pattern: "console.log($$$)"
+  - inside: { kind: function_declaration }
+```
+
+### 3. Refine with Constraints
+Add more specific conditions:
+```yaml
+all:
+  - pattern: "console.log($MSG)"
+  - inside: { kind: function_declaration }
+  - not: { pattern: "console.log('TODO')" }
+```
+
+### 4. Test and Iterate
+Run the rule and refine based on results:
+```bash
+ast-grep scan --rule my-rule.yml test-files/
+```
+
+## Tips for Effective Composition
+
+1. **Start broad, then narrow**: Begin with simple patterns and add restrictions
+2. **Use utils for reusability**: Extract common patterns into utility rules
+3. **Test incrementally**: Verify each composition step works correctly
+4. **Consider performance**: Complex nested rules can be slow on large codebases
+5. **Document your logic**: Use clear rule IDs and comments
+
+## Example: Complete Rule Development
+
+```yaml
+# Goal: Find TODO comments in production code (not test files)
+
+# Step 1: Basic pattern
+pattern: "// TODO: $MESSAGE"
+
+# Step 2: Add exclusions
+all:
+  - pattern: "// TODO: $MESSAGE"
+  - not: { inside: { pattern: "describe($$$)" } }  # Not in tests
+
+# Step 3: Add file constraints
+all:
+  - pattern: "// TODO: $MESSAGE"  
+  - not: { inside: { pattern: "describe($$$)" } }
+files: ["src/**/*.js"]
+ignores: ["**/*.test.js", "**/*.spec.js"]
+
+# Step 4: Add metadata
+id: no-todo-in-production
+message: "TODO comments should not remain in production code"
+severity: warning
+note: |
+  Consider:
+  - Creating a proper issue tracker entry
+  - Implementing the feature
+  - Removing the comment if no longer relevant
+```
+"#.to_string())
     }
 }
