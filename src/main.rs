@@ -48,6 +48,16 @@ impl AstGrepServer {
         let binary_manager =
             Arc::new(BinaryManager::new().expect("Failed to initialize binary manager"));
         let tools = Arc::new(AstGrepTools::new(binary_manager));
+        
+        // Set a default root to the current directory
+        if let Ok(current_dir) = std::env::current_dir() {
+            let root = Root {
+                uri: format!("file://{}", current_dir.display()),
+                name: Some("workspace".to_string()),
+            };
+            tools.set_roots(vec![root]);
+        }
+        
         Self { tools }
     }
 }
@@ -71,6 +81,7 @@ impl ServerHandler for AstGrepServer {
             ),
         }
     }
+
 
     async fn list_tools(
         &self,

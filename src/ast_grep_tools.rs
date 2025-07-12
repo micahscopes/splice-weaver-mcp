@@ -6,6 +6,7 @@ use rust_embed::RustEmbed;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::path::{Path, PathBuf};
 use tokio::process::Command as TokioCommand;
 
 #[derive(RustEmbed)]
@@ -15,6 +16,7 @@ struct Assets;
 pub struct AstGrepTools {
     binary_manager: Arc<BinaryManager>,
     search_engine: Arc<Mutex<Option<SimpleSearchEngine>>>,
+    roots: Arc<Mutex<Vec<Root>>>,
 }
 
 #[derive(serde::Deserialize)]
@@ -40,7 +42,61 @@ impl AstGrepTools {
         Self { 
             binary_manager,
             search_engine: Arc::new(Mutex::new(None)),
+            roots: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+    
+    pub fn set_roots(&self, roots: Vec<Root>) {
+        *self.roots.lock().unwrap() = roots;
+    }
+    
+    pub fn resolve_path(&self, target: &str) -> Result<PathBuf> {
+        let target_path = Path::new(target);
+        
+        // If it's already an absolute path, return it as-is
+        if target_path.is_absolute() {
+            return Ok(target_path.to_path_buf());
+        }
+        
+        // Get the roots
+        let roots = self.roots.lock().unwrap();
+        
+        // If no roots are configured, default to current directory
+        if roots.is_empty() {
+            let current_dir = std::env::current_dir()
+                .map_err(|e| anyhow!("Failed to get current directory: {}", e))?;
+            return Ok(current_dir.join(target_path));
+        }
+        
+        // Try each root in order until we find the first match
+        for root in roots.iter() {
+            let root_path = match root.uri.strip_prefix("file://") {
+                Some(path) => PathBuf::from(path),
+                None => {
+                    // If it's not a file URI, try to parse it as a direct path
+                    PathBuf::from(&root.uri)
+                }
+            };
+            
+            let resolved_path = root_path.join(target_path);
+            
+            // Check if the resolved path exists
+            if resolved_path.exists() {
+                return Ok(resolved_path);
+            }
+        }
+        
+        // If no matches found, return an error with helpful information
+        let root_names: Vec<String> = roots
+            .iter()
+            .map(|r| r.name.clone().unwrap_or_else(|| r.uri.clone()))
+            .collect();
+        
+        Err(anyhow!(
+            "Path '{}' not found in any root directory. Available roots: {}",
+            target,
+            root_names.join(", ")
+        ))
     }
 
     fn with_search_engine<F, R>(&self, f: F) -> Result<R>
@@ -124,6 +180,9 @@ impl AstGrepTools {
         let operation = args["operation"].as_str().unwrap_or("search");
         let dry_run = args["dry_run"].as_bool().unwrap_or(true);
 
+        // Resolve the target path using MCP roots
+        let resolved_target = self.resolve_path(target)?;
+
         // Create temporary rule file
         let temp_rule_file = std::env::temp_dir().join("execute_rule.yml");
         tokio::fs::write(&temp_rule_file, rule_config).await?;
@@ -136,14 +195,14 @@ impl AstGrepTools {
                 cmd.arg("scan")
                     .arg("--rule")
                     .arg(&temp_rule_file)
-                    .arg(target)
+                    .arg(&resolved_target)
                     .arg("--json");
             }
             "replace" => {
                 cmd.arg("scan")
                     .arg("--rule")
                     .arg(&temp_rule_file)
-                    .arg(target)
+                    .arg(&resolved_target)
                     .arg("--json");
 
                 if dry_run {
@@ -154,7 +213,7 @@ impl AstGrepTools {
                 cmd.arg("scan")
                     .arg("--rule")
                     .arg(&temp_rule_file)
-                    .arg(target)
+                    .arg(&resolved_target)
                     .arg("--json");
             }
             _ => return Err(anyhow!("Unknown operation: {}", operation)),

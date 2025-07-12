@@ -13,7 +13,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/cpp/fix-format-vuln.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/cpp/fix-format-vuln.md",
       "title": "Fix Format String Vulnerability",
       "type": "YAML",
       "yaml_content": "id: fix-format-security-error\nlanguage: Cpp\nrule:\n  pattern: $PRINTF($S, $VAR)\nconstraints:\n  PRINTF: # a format string function\n    { regex: \"^sprintf|fprintf$\" }\n  VAR: # not a literal string\n    not:\n      any:\n      - { kind: string_literal }\n      - { kind: concatenated_string }\nfix: $PRINTF($S, \"%s\", $VAR)"
@@ -27,7 +27,7 @@
       "language": "cpp",
       "playground_link": "/playground.html#eyJtb2RlIjoiUGF0Y2giLCJsYW5nIjoiY3BwIiwicXVlcnkiOiJzdHJ1Y3QgJFNPTUVUSElORzogICRJTkhFUklUU19GUk9NIHsgJCQkQk9EWTsgfSIsInJld3JpdGUiOiIiLCJzdHJpY3RuZXNzIjoic21hcnQiLCJzZWxlY3RvciI6IiIsImNvbmZpZyI6IiIsInNvdXJjZSI6InN0cnVjdCBGb286IEJhciB7fTtcblxuc3RydWN0IEJhcjogQmF6IHtcbiAgaW50IGEsIGI7XG59In0=",
       "rules": [],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/cpp/find-struct-inheritance.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/cpp/find-struct-inheritance.md",
       "title": "Find Struct Inheritance",
       "type": "Pattern",
       "yaml_content": ""
@@ -46,7 +46,7 @@
         "has",
         "not"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/java/no-unused-vars.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/java/no-unused-vars.md",
       "title": "No Unused Vars in Java",
       "type": "YAML",
       "yaml_content": "id: no-unused-vars\nrule:\n    kind: local_variable_declaration\n    all:\n        - has:\n            has:\n                kind: identifier\n                pattern: $IDENT\n        - not:\n            precedes:\n                stopBy: end\n                has:\n                    stopBy: end\n                    any:\n                        - { kind: identifier, pattern: $IDENT }\n                        - { has: {kind: identifier, pattern: $IDENT, stopBy: end}}\nfix: ''"
@@ -60,7 +60,7 @@
       "language": "rust",
       "playground_link": "/playground.html#eyJtb2RlIjoiUGF0Y2giLCJsYW5nIjoicnVzdCIsInF1ZXJ5IjoiJE5VTS50b19zdHJpbmcoKS5jaGFycygpLmNvdW50KCkiLCJyZXdyaXRlIjoiJE5VTS5jaGVja2VkX2lsb2cxMCgpLnVud3JhcF9vcigwKSArIDEiLCJjb25maWciOiIjIFlBTUwgUnVsZSBpcyBtb3JlIHBvd2VyZnVsIVxuIyBodHRwczovL2FzdC1ncmVwLmdpdGh1Yi5pby9ndWlkZS9ydWxlLWNvbmZpZy5odG1sI3J1bGVcbnJ1bGU6XG4gIGFueTpcbiAgICAtIHBhdHRlcm46IGNvbnNvbGUubG9nKCRBKVxuICAgIC0gcGF0dGVybjogY29uc29sZS5kZWJ1ZygkQSlcbmZpeDpcbiAgbG9nZ2VyLmxvZygkQSkiLCJzb3VyY2UiOiJsZXQgd2lkdGggPSAobGluZXMgKyBudW0pLnRvX3N0cmluZygpLmNoYXJzKCkuY291bnQoKTsifQ==",
       "rules": [],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/rust/get-digit-count-in-usize.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/rust/get-digit-count-in-usize.md",
       "title": "Get number of digits in a `usize`",
       "type": "Pattern",
       "yaml_content": ""
@@ -79,7 +79,7 @@
         "inside",
         "has"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/rust/avoid-duplicated-exports.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/rust/avoid-duplicated-exports.md",
       "title": "Avoid Duplicated Exports",
       "type": "YAML",
       "yaml_content": "id: avoid-duplicate-export\nlanguage: rust\nrule:\n  all:\n     - pattern: pub use $B::$C;\n     - inside:\n        kind: source_file\n        has:\n          pattern: pub mod $A;\n     - has:\n        pattern: $A\n        stopBy: end"
@@ -93,7 +93,7 @@
       "language": "rust",
       "playground_link": "https://ast-grep.github.io/playground.html#eyJtb2RlIjoiUGF0Y2giLCJsYW5nIjoicnVzdCIsInF1ZXJ5IjoiJEEuY2hhcnMoKS5lbnVtZXJhdGUoKSIsInJld3JpdGUiOiIkQS5jaGFyX2luZGljZXMoKSIsImNvbmZpZyI6IiIsInNvdXJjZSI6ImZvciAoaSwgY2hhcikgaW4gc291cmNlLmNoYXJzKCkuZW51bWVyYXRlKCkge1xuICAgIHByaW50bG4hKFwiQm9zaGVuIGlzIGFuZ3J5IDopXCIpO1xufSJ9",
       "rules": [],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/rust/boshen-footgun.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/rust/boshen-footgun.md",
       "title": "Beware of char offset when iterate over a string",
       "type": "Pattern",
       "yaml_content": ""
@@ -107,7 +107,7 @@
       "language": "rust",
       "playground_link": "/playground.html#eyJtb2RlIjoiUGF0Y2giLCJsYW5nIjoicnVzdCIsInF1ZXJ5IjoiaW5kb2MhIHsgciNcIiQkJEFcIiMgfSIsInJld3JpdGUiOiJgJCQkQWAiLCJzdHJpY3RuZXNzIjoicmVsYXhlZCIsInNlbGVjdG9yIjoiIiwiY29uZmlnIjoicnVsZTogXG4gYW55OlxuIC0gcGF0dGVybjogJFYgPT09ICRTRU5TRVRJVkVXT1JEXG4gLSBwYXR0ZXJuOiAkU0VOU0VUSVZFV09SRCA9PT0gJFZcbmNvbnN0cmFpbnRzOlxuICBTRU5TRVRJVkVXT1JEOlxuICAgIHJlZ2V4OiBwYXNzd29yZCIsInNvdXJjZSI6ImZuIG1haW4oKSB7XG4gICAgaW5kb2MhIHtyI1wiXG4gICAgICAgIC5mb28ge1xuICAgICAgICAgICAgb3JkZXI6IDE7XG4gICAgICAgIH1cbiAgICBcIiN9O1xufSJ9",
       "rules": [],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/rust/rewrite-indoc-macro.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/rust/rewrite-indoc-macro.md",
       "title": "Rewrite `indoc!` macro",
       "type": "Pattern",
       "yaml_content": ""
@@ -125,7 +125,7 @@
         "pattern",
         "not"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/html/extract-i18n-key.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/html/extract-i18n-key.md",
       "title": "Extract i18n Keys",
       "type": "YAML",
       "yaml_content": "id: extract-i18n-key\nlanguage: html\nrule:\n  kind: text\n  pattern: $T\n  # skip dynamic text in mustache syntax\n  not: { regex: '\\{\\{.*\\}\\}' }\nfix: \"{{ $('$T') }}\""
@@ -146,7 +146,7 @@
         "regex",
         "matches"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/html/upgrade-ant-design-vue.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/html/upgrade-ant-design-vue.md",
       "title": "Upgrade Ant Design Vue",
       "type": "YAML",
       "yaml_content": "id: upgrade-ant-design-vue\nlanguage: HTML\nutils:\n  inside-tag:\n    # find the enclosing element of the attribute\n    inside:\n      kind: element\n      stopBy: { kind: element } # only the closest element\n      # find the tag name and store it in metavar\n      has:\n        stopBy: { kind: tag_name }\n        kind: tag_name\n        pattern: $TAG_NAME\nrule:\n  # find the target attribute_name\n  kind: attribute_name\n  regex: :visible\n  # find the element\n  matches: inside-tag\n# ensure it only matches modal/tooltip but not tag\nconstraints:\n  TAG_NAME:\n    regex: a-modal|a-tooltip\nfix: :open"
@@ -162,7 +162,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/c/match-function-call.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/c/match-function-call.md",
       "title": "Match Function Call in C",
       "type": "YAML",
       "yaml_content": "id: match-function-call\nlanguage: c\nrule:\n  pattern:\n    context: $M($$$);\n    selector: call_expression"
@@ -180,7 +180,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/c/rewrite-method-to-function-call.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/c/rewrite-method-to-function-call.md",
       "title": "Rewrite Method to Function Call",
       "type": "YAML",
       "yaml_content": "id: method_receiver\nlanguage: c\nrule:\n  pattern: $R.$METHOD($$$ARGS)\ntransform:\n  MAYBE_COMMA:\n    replace:\n      source: $$$ARGS\n      replace: '^.+'\n      by: ', '\nfix:\n  $METHOD(&$R$MAYBE_COMMA$$$ARGS)"
@@ -199,7 +199,7 @@
         "pattern",
         "inside"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/c/yoda-condition.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/c/yoda-condition.md",
       "title": "Rewrite Check to Yoda Condition",
       "type": "YAML",
       "yaml_content": "id: may-the-force-be-with-you\nlanguage: c\nrule:\n  pattern: $A == $B                 # Find equality comparison\n  inside:                           # inside an if_statement\n    kind: parenthesized_expression\n    inside: {kind: if_statement}\nconstraints:                        # with the constraint that\n  B: { kind: number_literal }       # right side is a number\nfix: $B == $A"
@@ -217,7 +217,7 @@
         "has",
         "not"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/avoid-jsx-short-circuit.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/avoid-jsx-short-circuit.md",
       "title": "Avoid `&&` short circuit in JSX",
       "type": "YAML",
       "yaml_content": "id: do-what-brooooooklyn-said\nlanguage: Tsx\nrule:\n  kind: jsx_expression\n  has:\n    pattern: $A && $B\n  not:\n    inside:\n      kind: jsx_attribute\nfix: \"{$A ? $B : null}\""
@@ -240,7 +240,7 @@
         "pattern",
         "has"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/unnecessary-react-hook.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/unnecessary-react-hook.md",
       "title": "Avoid Unnecessary React Hook",
       "type": "YAML",
       "yaml_content": "id: unnecessary-react-hook\nlanguage: Tsx\nutils:\n  hook_call:\n    has:\n      kind: call_expression\n      regex: ^use\n      stopBy: end\nrule:\n  any:\n  - pattern: function $FUNC($$$) { $$$ }\n  - pattern: let $FUNC = ($$$) => $$$\n  - pattern: const $FUNC = ($$$) => $$$\n  has:\n    pattern: $BODY\n    kind: statement_block\n    stopBy: end\nconstraints:\n  FUNC: {regex: ^use }\n  BODY: { not: { matches: hook_call } }"
@@ -258,7 +258,7 @@
         "pattern",
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/reverse-react-compiler.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/reverse-react-compiler.md",
       "title": "Reverse React Compiler™",
       "type": "YAML",
       "yaml_content": "id: rewrite-cache\nlanguage: tsx\nrule:\n  any:\n  - pattern: useCallback($FN, $$$)\n  - pattern: memo($FN, $$$)\nfix: $FN\n---\nid: rewrite-use-memo\nlanguage: tsx\nrule: { pattern: 'useMemo($FN, $$$)' }\nfix: ($FN)()   # need IIFE to wrap memo function"
@@ -279,7 +279,7 @@
         "kind",
         "inside"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/rename-svg-attribute.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/rename-svg-attribute.md",
       "title": "Rename SVG Attribute",
       "type": "YAML",
       "yaml_content": "id: rewrite-svg-attribute\nlanguage: tsx\nrule:\n  pattern: $PROP            # capture in metavar\n  regex: ([a-z]+)-([a-z])   # hyphenated name\n  kind: property_identifier\n  inside:\n    kind: jsx_attribute     # in JSX attribute\ntransform:\n  NEW_PROP:                 # new property name\n    convert:                # use ast-grep's convert\n      source: $PROP\n      toCase: camelCase     # to camelCase naming\nfix: $NEW_PROP"
@@ -295,7 +295,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/rewrite-mobx-component.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/rewrite-mobx-component.md",
       "title": "Rewrite MobX Component Style",
       "type": "YAML",
       "yaml_content": "id: rewrite-mobx-component\nlanguage: typescript\nrule:\n  pattern: export const $COMP = observer($FUNC)\nfix: |-\n  const Base$COMP = $FUNC\n  export const $COMP = observer(Base$COMP)"
@@ -312,7 +312,7 @@
         "pattern",
         "has"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/avoid-nested-links.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/avoid-nested-links.md",
       "title": "Avoid nested links",
       "type": "YAML",
       "yaml_content": "id: no-nested-links\nlanguage: tsx\nseverity: error\nrule:\n  pattern: <a $$$>$$$A</a>\n  has:\n    pattern: <a $$$>$$$</a>\n    stopBy: end"
@@ -326,7 +326,7 @@
       "language": "tsx",
       "playground_link": "/playground.html#eyJtb2RlIjoiUGF0Y2giLCJsYW5nIjoidHlwZXNjcmlwdCIsInF1ZXJ5IjoidXNlU3RhdGU8c3RyaW5nPigkQSkiLCJyZXdyaXRlIjoidXNlU3RhdGUoJEEpIiwiY29uZmlnIjoiIyBZQU1MIFJ1bGUgaXMgbW9yZSBwb3dlcmZ1bCFcbiMgaHR0cHM6Ly9hc3QtZ3JlcC5naXRodWIuaW8vZ3VpZGUvcnVsZS1jb25maWcuaHRtbCNydWxlXG5ydWxlOlxuICBhbnk6XG4gICAgLSBwYXR0ZXJuOiBjb25zb2xlLmxvZygkQSlcbiAgICAtIHBhdHRlcm46IGNvbnNvbGUuZGVidWcoJEEpXG5maXg6XG4gIGxvZ2dlci5sb2coJEEpIiwic291cmNlIjoiZnVuY3Rpb24gQ29tcG9uZW50KCkge1xuICBjb25zdCBbbmFtZSwgc2V0TmFtZV0gPSB1c2VTdGF0ZTxzdHJpbmc+KCdSZWFjdCcpXG59In0=",
       "rules": [],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/redundant-usestate-type.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/tsx/redundant-usestate-type.md",
       "title": "Unnecessary `useState` Type",
       "type": "Pattern",
       "yaml_content": ""
@@ -346,7 +346,7 @@
         "inside",
         "inside"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/find-import-file-without-extension.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/find-import-file-without-extension.md",
       "title": "Find Import File without Extension",
       "type": "YAML",
       "yaml_content": "id: find-import-file\nlanguage: js\nrule:\n  regex: \"/[^.]+[^/]$\"\n  kind: string_fragment\n  any:\n    - inside:\n        stopBy: end\n        kind: import_statement\n    - inside:\n        stopBy: end\n        kind: call_expression\n        has:\n          field: function\n          regex: \"^import$\""
@@ -364,7 +364,7 @@
         "pattern",
         "inside"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/find-import-usage.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/find-import-usage.md",
       "title": "Find Import Usage",
       "type": "YAML",
       "yaml_content": "id: find-import-usage\nlanguage: typescript\nrule:\n  kind: identifier # ast-grep requires a kind\n  pattern: $MOD   # the identifier to find\n  inside: # find the root\n    stopBy: end\n    kind: program\n    has: # and has the import statement\n      kind: import_statement\n      has: # look for the matching identifier\n        stopBy: end\n        kind: import_specifier\n        pattern: $MOD # same pattern as the usage is enforced here"
@@ -383,7 +383,7 @@
         "pattern",
         "inside"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/missing-component-decorator.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/missing-component-decorator.md",
       "title": "Missing Component Decorator",
       "type": "YAML",
       "yaml_content": "id: missing-component-decorator\nmessage: You're using an Angular lifecycle method, but missing an Angular @Component() decorator.\nlanguage: TypeScript\nseverity: warning\nrule:\n  pattern:\n    context: 'class Hi { $METHOD() { $$$_} }'\n    selector: method_definition\n  inside:\n    pattern: 'class $KLASS $$$_ { $$$_ }'\n    stopBy: end\n    not:\n      has:\n        pattern: '@Component($$$_)'\nconstraints:\n  METHOD:\n    regex: ngOnInit|ngOnDestroy\nlabels:\n  KLASS:\n    style: primary\n    message: \"This class is missing the decorator.\"\n  METHOD:\n    style: secondary\n    message: \"This is an Angular lifecycle method.\"\nmetadata:\n  contributedBy: samwightt"
@@ -402,7 +402,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/speed-up-barrel-import.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/speed-up-barrel-import.md",
       "title": "Speed up Barrel Import",
       "type": "YAML",
       "yaml_content": "id: speed-up-barrel-import\nlanguage: typescript\n# find the barrel import statement\nrule:\n  pattern: import {$$$IDENTS} from './barrel'\n# rewrite imported identifiers to direct imports\nrewriters:\n- id: rewrite-identifer\n  rule:\n    pattern: $IDENT\n    kind: identifier\n  fix: import $IDENT from './barrel/$IDENT'\n# apply the rewriter to the import statement\ntransform:\n  IMPORTS:\n    rewrite:\n      rewriters: [rewrite-identifer]\n      # $$$IDENTS contains imported identifiers\n      source: $$$IDENTS\n      # join the rewritten imports by newline\n      joinBy: \"\\n\"\nfix: $IMPORTS"
@@ -420,7 +420,7 @@
         "pattern",
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/switch-from-should-to-expect.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/switch-from-should-to-expect.md",
       "title": "Switch Chai from `should` style to `expect`",
       "type": "YAML",
       "yaml_content": "id: should_to_expect_instanceof\nlanguage: TypeScript\nrule:\n  any:\n  - pattern: $NAME.should.be.an.instanceof($TYPE)\n  - pattern: $NAME.should.be.an.instanceOf($TYPE)\nfix: |-\n  expect($NAME).instanceOf($TYPE)\n---\nid: should_to_expect_genericShouldBe\nlanguage: TypeScript\nrule:\n  pattern: $NAME.should.be.$PROP\nfix: |-\n  expect($NAME).to.be.$PROP"
@@ -437,7 +437,7 @@
         "pattern",
         "inside"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/no-await-in-promise-all.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/no-await-in-promise-all.md",
       "title": "No `await` in `Promise.all` array",
       "type": "YAML",
       "yaml_content": "id: no-await-in-promise-all\nlanguage: typescript\nrule:\n  pattern: await $A\n  inside:\n    pattern: Promise.all($_)\n    stopBy:\n      not: { any: [{kind: array}, {kind: arguments}] }\nfix: $A"
@@ -492,7 +492,7 @@
         "not",
         "has"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/find-import-identifiers.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/find-import-identifiers.md",
       "title": "Find Import Identifiers",
       "type": "YAML",
       "yaml_content": "# find-all-imports-and-identifiers.yaml\nid: find-all-imports-and-identifiers\nlanguage: TypeScript\nrule:\n  any:\n    # ALIAS IMPORTS\n    # ------------------------------------------------------------\n    # import { ORIGINAL as ALIAS } from 'SOURCE'\n    # ------------------------------------------------------------\n    - all:\n        # 1. Target the specific node type for named imports\n        - kind: import_specifier\n        # 2. Ensure it *has* an 'alias' field, capturing the alias identifier\n        - has:\n            field: alias\n            pattern: $ALIAS\n        # 3. Capture the original identifier (which has the 'name' field)\n        - has:\n            field: name\n            pattern: $ORIGINAL\n        # 4. Find an ANCESTOR import_statement and capture its source path\n        - inside:\n            stopBy: end # <<<--- Search ancestors.\n            kind: import_statement\n            has: # Ensure the found import_statement has the source field\n              field: source\n              pattern: $SOURCE\n\n    # DEFAULT IMPORTS\n    # ------------------------------------------------------------\n    # import { ORIGINAL } from 'SOURCE'\n    # ------------------------------------------------------------\n    - all:\n        - kind: import_statement\n        - has:\n            # Ensure it has an import_clause...\n            kind: import_clause\n            has:\n              # ...that directly contains an identifier (the default import name)\n              # This identifier is NOT under a 'named_imports' or 'namespace_import' node\n              kind: identifier\n              pattern: $DEFAULT_NAME\n        - has:\n            field: source\n            pattern: $SOURCE\n\n    # REGULAR IMPORTS\n    # ------------------------------------------------------------\n    # import { ORIGINAL } from 'SOURCE'\n    # ------------------------------------------------------------\n    - all:\n        # 1. Target the specific node type for named imports\n        - kind: import_specifier\n        # 2. Ensure it *has* an 'alias' field, capturing the alias identifier\n        - has:\n            field: name\n            pattern: $ORIGINAL\n        # 4. Find an ANCESTOR import_statement and capture its source path\n        - inside:\n            stopBy: end # <<<--- This is the key fix! Search ancestors.\n            kind: import_statement\n            has: # Ensure the found import_statement has the source field\n              field: source\n              pattern: $SOURCE\n\n    # DYNAMIC IMPORTS (Single Variable Assignment)\n    # ------------------------------------------------------------\n    # const VAR_NAME = require('SOURCE')\n    # ------------------------------------------------------------\n    - all:\n        - kind: variable_declarator\n        - has:\n            field: name\n            kind: identifier\n            pattern: $VAR_NAME # Capture the single variable name\n        - has:\n            field: value\n            any:\n              # Direct call\n              - all: # Wrap conditions in all\n                  - kind: call_expression\n                  - has: { field: function, regex: '^(require|import)$' }\n                  - has: { field: arguments, has: { kind: string, pattern: $SOURCE } } # Capture source\n              # Awaited call\n              - kind: await_expression\n                has:\n                  all: # Wrap conditions in all\n                    - kind: call_expression\n                    - has: { field: function, regex: '^(require|import)$' }\n                    - has: { field: arguments, has: { kind: string, pattern: $SOURCE } } # Capture source\n\n    # DYNAMIC IMPORTS (Destructured Shorthand Assignment)\n    # ------------------------------------------------------------\n    # const { ORIGINAL } = require('SOURCE')\n    # ------------------------------------------------------------\n    - all:\n        # 1. Target the shorthand identifier within the pattern\n        - kind: shorthand_property_identifier_pattern\n        - pattern: $ORIGINAL\n        # 2. Ensure it's inside an object_pattern that is the name of a variable_declarator\n        - inside:\n            kind: object_pattern\n            inside: # Check the variable_declarator it belongs to\n              kind: variable_declarator\n              # 3. Check the value assigned by the variable_declarator\n              has:\n                field: value\n                any:\n                  # Direct call\n                  - all:\n                      - kind: call_expression\n                      - has: { field: function, regex: '^(require|import)$' }\n                      - has: { field: arguments, has: { kind: string, pattern: $SOURCE } } # Capture source\n                  # Awaited call\n                  - kind: await_expression\n                    has:\n                      all:\n                        - kind: call_expression\n                        - has: { field: function, regex: '^(require|import)$' }\n                        - has: { field: arguments, has: { kind: string, pattern: $SOURCE } } # Capture source\n              stopBy: end # Search ancestors to find the correct variable_declarator\n\n    # DYNAMIC IMPORTS (Destructured Alias Assignment)\n    # ------------------------------------------------------------\n    # const { ORIGINAL: ALIAS } = require('SOURCE')\n    # ------------------------------------------------------------\n    - all:\n        # 1. Target the pair_pattern for aliased destructuring\n        - kind: pair_pattern\n        # 2. Capture the original identifier (key)\n        - has:\n            field: key\n            kind: property_identifier # Could be string/number literal too, but property_identifier is common\n            pattern: $ORIGINAL\n        # 3. Capture the alias identifier (value)\n        - has:\n            field: value\n            kind: identifier\n            pattern: $ALIAS\n        # 4. Ensure it's inside an object_pattern that is the name of a variable_declarator\n        - inside:\n            kind: object_pattern\n            inside: # Check the variable_declarator it belongs to\n              kind: variable_declarator\n              # 5. Check the value assigned by the variable_declarator\n              has:\n                field: value\n                any:\n                  # Direct call\n                  - all:\n                      - kind: call_expression\n                      - has: { field: function, regex: '^(require|import)$' }\n                      - has: { field: arguments, has: { kind: string, pattern: $SOURCE } } # Capture source\n                  # Awaited call\n                  - kind: await_expression\n                    has:\n                      all:\n                        - kind: call_expression\n                        - has: { field: function, regex: '^(require|import)$' }\n                        - has: { field: arguments, has: { kind: string, pattern: $SOURCE } } # Capture source\n              stopBy: end # Search ancestors to find the correct variable_declarator\n            stopBy: end # Ensure we check ancestors for the variable_declarator\n\n    # DYNAMIC IMPORTS (Side Effect / Source Only)\n    # ------------------------------------------------------------\n    # require('SOURCE')\n    # ------------------------------------------------------------\n    - all:\n        - kind: string # Target the source string literal directly\n        - pattern: $SOURCE\n        - inside: # String must be the argument of require() or import()\n            kind: arguments\n            parent:\n              kind: call_expression\n              has:\n                field: function\n                # Match 'require' identifier or 'import' keyword used dynamically\n                regex: '^(require|import)$'\n            stopBy: end # Search ancestors if needed (for the arguments/call_expression)\n        - not:\n            inside:\n              kind: lexical_declaration\n              stopBy: end # Search all ancestors up to the root\n\n    # NAMESPACE IMPORTS\n    # ------------------------------------------------------------\n    # import * as ns from 'mod'\n    # ------------------------------------------------------------\n    - all:\n        - kind: import_statement\n        - has:\n            kind: import_clause\n            has:\n              kind: namespace_import\n              has:\n                # namespace_import's child identifier is the alias\n                kind: identifier\n                pattern: $NAMESPACE_ALIAS\n        - has:\n            field: source\n            pattern: $SOURCE\n\n    # SIDE EFFECT IMPORTS\n    # ------------------------------------------------------------\n    # import 'mod'\n    # ------------------------------------------------------------\n    - all:\n        - kind: import_statement\n        - not: # Must NOT have an import_clause\n            has: { kind: import_clause }\n        - has: # But must have a source\n            field: source\n            pattern: $SOURCE"
@@ -513,7 +513,7 @@
         "pattern",
         "matches"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/migrate-xstate-v5.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/migrate-xstate-v5.md",
       "title": "Migrate XState to v5 from v4",
       "type": "YAML",
       "yaml_content": "id: migrate-import-name\nutils:\n  FROM_XS: {kind: import_statement, has: {kind: string, regex: xstate}}\n  XS_EXPORT:\n    kind: identifier\n    inside: { has: { matches: FROM_XS }, stopBy: end }\nrule: { regex: ^Machine|interpret$, pattern: $IMPT, matches: XS_EXPORT }\ntransform:\n  STEP1:\n    replace: {by: create$1, replace: (Machine), source: $IMPT }\n  FINAL:\n    replace: { by: createActor, replace: interpret, source: $STEP1 }\nfix: $FINAL\n\n---\n\nid: migrate-to-provide\nrule: { pattern: $MACHINE.withConfig }\nfix: $MACHINE.provide\n\n---\n\nid: migrate-to-actors\nrule:\n  kind: property_identifier\n  regex: ^services$\n  inside: { pattern:  $M.withConfig($$$ARGS), stopBy: end }\nfix: actors"
@@ -534,7 +534,7 @@
         "not",
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/no-console-except-catch.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/typescript/no-console-except-catch.md",
       "title": "No `console` except in `catch` block",
       "type": "YAML",
       "yaml_content": "id: no-console-except-error\nlanguage: typescript\nrule:\n  any:\n    - pattern: console.error($$$)\n      not:\n        inside:\n          kind: catch_clause\n          stopBy: end\n    - pattern: console.$METHOD($$$)\nconstraints:\n  METHOD:\n    regex: 'log|debug|warn'"
@@ -552,7 +552,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/ruby/prefer-symbol-over-proc.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/ruby/prefer-symbol-over-proc.md",
       "title": "Prefer Symbol over Proc",
       "type": "YAML",
       "yaml_content": "id: prefer-symbol-over-proc\nlanguage: ruby\nrule:\n  pattern: $LIST.$ITER { |$V| $V.$METHOD }\nconstraints:\n  ITER:\n    regex: 'map|select|each'\nfix: '$LIST.$ITER(&:$METHOD)'"
@@ -574,7 +574,7 @@
         "pattern",
         "has"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/ruby/migrate-action-filter.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/ruby/migrate-action-filter.md",
       "title": "Migrate action_filter in Ruby on Rails",
       "type": "YAML",
       "yaml_content": "id: migration-action-filter\nlanguage: ruby\nrule:\n  any:\n    - pattern: before_filter $$$ACTION\n    - pattern: around_filter $$$ACTION\n    - pattern: after_filter $$$ACTION\n  has:\n    pattern: $FILTER\n    field: method\nfix:\n  $NEW_ACTION $$$ACTION\ntransform:\n  NEW_ACTION:\n    replace:\n      source: $FILTER\n      replace: _filter\n      by: _action"
@@ -592,7 +592,7 @@
         "pattern",
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/yaml/find-key-value.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/yaml/find-key-value.md",
       "title": "Find key/value and Show Message",
       "type": "YAML",
       "yaml_content": "id: detect-host-port\nmessage: You are using $HOST on Port $PORT, please change it to 8000\nseverity: error\nrule:\n  any:\n    - pattern: |\n        port: $PORT\n    - pattern: |\n        host: $HOST"
@@ -611,7 +611,7 @@
         "pattern",
         "kind"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/prefer-generator-expressions.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/prefer-generator-expressions.md",
       "title": "Prefer Generator Expressions",
       "type": "YAML",
       "yaml_content": "id: prefer-generator-expressions\nlanguage: python\nrule:\n  pattern: $LIST\n  kind: list_comprehension\ntransform:\n  INNER:\n    substring: {source: $LIST, startChar: 1, endChar: -1 }\nfix: ($INNER)"
@@ -627,7 +627,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/migrate-openai-sdk.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/migrate-openai-sdk.md",
       "title": "Migrate OpenAI SDK",
       "type": "YAML",
       "yaml_content": "id: import-openai\nlanguage: python\nrule:\n  pattern: import openai\nfix: from openai import Client\n---\nid: rewrite-client\nlanguage: python\nrule:\n  pattern: openai.api_key = $KEY\nfix: client = Client($KEY)\n---\nid: rewrite-chat-completion\nlanguage: python\nrule:\n  pattern: openai.Completion.create($$$ARGS)\nfix: |-\n  client.completions.create(\n    $$$ARGS\n  )"
@@ -646,7 +646,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/remove-async-await.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/remove-async-await.md",
       "title": "Remove `async` function",
       "type": "YAML",
       "yaml_content": "id: remove-async-def\nlanguage: python\nrule:\n  # match async function definition\n  pattern:\n    context: 'async def $FUNC($$$ARGS): $$$BODY'\n    selector: function_definition\nrewriters:\n# define a rewriter to remove the await keyword\n  remove-await-call:\n    pattern: 'await $$$CALL'\n    fix: $$$CALL # remove await keyword\n# apply the rewriter to the function body\ntransform:\n  REMOVED_BODY:\n    rewrite:\n      rewriters: [remove-await-call]\n      source: $$$BODY\nfix: |-\n  def $FUNC($$$ARGS):\n    $REMOVED_BODY"
@@ -666,7 +666,7 @@
         "kind",
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/recursive-rewrite-type.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/recursive-rewrite-type.md",
       "title": "Recursive Rewrite Type",
       "type": "YAML",
       "yaml_content": "id: recursive-rewrite-types\nlanguage: python\nrewriters:\n# rewrite Optional[T] to T | None\n- id: optional\n  rule:\n    any:\n    - pattern:\n        context: 'arg: Optional[$TYPE]'\n        selector: generic_type\n    - pattern: Optional[$TYPE]\n  # recursively apply rewriters to $TYPE\n  transform:\n    NT:\n      rewrite:\n        rewriters: [optional, unions]\n        source: $TYPE\n  # use the new variable $NT\n  fix: $NT | None\n\n# similar to Optional, rewrite Union[T1, T2] to T1 | T2\n- id: unions\n  language: Python\n  rule:\n    pattern:\n      context: 'a: Union[$$$TYPES]'\n      selector: generic_type\n  transform:\n    UNIONS:\n      # rewrite all types inside $$$TYPES\n      rewrite:\n        rewriters: [ rewrite-unions ]\n        source: $$$TYPES\n        joinBy: \" | \"\n  fix: $UNIONS\n- id: rewrite-unions\n  rule:\n    pattern: $TYPE\n    kind: type\n  # recursive part\n  transform:\n    NT:\n      rewrite:\n        rewriters: [optional, unions]\n        source: $TYPE\n  fix: $NT\n\n# find all types\nrule:\n  kind: type\n  pattern: $TPE\n# apply the recursive rewriters\ntransform:\n  NEW_TYPE:\n    rewrite:\n      rewriters: [optional, unions]\n      source: $TPE\n# output\nfix: $NEW_TYPE"
@@ -682,7 +682,7 @@
       "language": "python",
       "playground_link": "/playground.html#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6InB5dGhvbiIsInF1ZXJ5IjoiZGVmIGZvbygkWCk6XG4gICRTIiwicmV3cml0ZSI6ImxvZ2dlci5sb2coJE1BVENIKSIsImNvbmZpZyI6ImlkOiBweXRlc3QtdHlwZS1oaW50LWZpeHR1cmVcbmxhbmd1YWdlOiBQeXRob25cbnV0aWxzOlxuICBpcy1maXh0dXJlLWZ1bmN0aW9uOlxuICAgIGtpbmQ6IGZ1bmN0aW9uX2RlZmluaXRpb25cbiAgICBmb2xsb3dzOlxuICAgICAga2luZDogZGVjb3JhdG9yXG4gICAgICBoYXM6XG4gICAgICAgIGtpbmQ6IGlkZW50aWZpZXJcbiAgICAgICAgcmVnZXg6IF5maXh0dXJlJFxuICAgICAgICBzdG9wQnk6IGVuZFxuICBpcy10ZXN0LWZ1bmN0aW9uOlxuICAgIGtpbmQ6IGZ1bmN0aW9uX2RlZmluaXRpb25cbiAgICBoYXM6XG4gICAgICBmaWVsZDogbmFtZVxuICAgICAgcmVnZXg6IF50ZXN0X1xuICBpcy1weXRlc3QtY29udGV4dDpcbiAgICAjIFB5dGVzdCBjb250ZXh0IGlzIGEgbm9kZSBpbnNpZGUgYSBweXRlc3RcbiAgICAjIHRlc3QvZml4dHVyZVxuICAgIGluc2lkZTpcbiAgICAgIHN0b3BCeTogZW5kXG4gICAgICBhbnk6XG4gICAgICAgIC0gbWF0Y2hlczogaXMtZml4dHVyZS1mdW5jdGlvblxuICAgICAgICAtIG1hdGNoZXM6IGlzLXRlc3QtZnVuY3Rpb25cbiAgaXMtZml4dHVyZS1hcmc6XG4gICAgIyBGaXh0dXJlIGFyZ3VtZW50cyBhcmUgaWRlbnRpZmllcnMgaW5zaWRlIHRoZSBcbiAgICAjIHBhcmFtZXRlcnMgb2YgYSB0ZXN0L2ZpeHR1cmUgZnVuY3Rpb25cbiAgICBhbGw6XG4gICAgICAtIGtpbmQ6IGlkZW50aWZpZXJcbiAgICAgIC0gbWF0Y2hlczogaXMtcHl0ZXN0LWNvbnRleHRcbiAgICAgIC0gaW5zaWRlOlxuICAgICAgICAgIGtpbmQ6IHBhcmFtZXRlcnNcbnJ1bGU6XG4gIG1hdGNoZXM6IGlzLWZpeHR1cmUtYXJnXG4gIHJlZ2V4OiBeZm9vJFxuZml4OiAnZm9vOiBpbnQnXG4iLCJzb3VyY2UiOiJmcm9tIGNvbGxlY3Rpb25zLmFiYyBpbXBvcnQgSXRlcmFibGVcbmZyb20gdHlwaW5nIGltcG9ydCBBbnlcblxuaW1wb3J0IHB5dGVzdFxuZnJvbSBweXRlc3QgaW1wb3J0IGZpeHR1cmVcblxuQHB5dGVzdC5maXh0dXJlKHNjb3BlPVwic2Vzc2lvblwiKVxuZGVmIGZvbygpIC0+IEl0ZXJhYmxlW2ludF06XG4gICAgeWllbGQgNVxuXG5AZml4dHVyZVxuZGVmIGJhcihmb28pIC0+IHN0cjpcbiAgICByZXR1cm4gc3RyKGZvbylcblxuZGVmIHJlZ3VsYXJfZnVuY3Rpb24oZm9vKSAtPiBOb25lOlxuICAgICMgVGhpcyBmdW5jdGlvbiBkb2Vzbid0IHVzZSB0aGUgJ2ZvbycgZml4dHVyZVxuICAgIHByaW50KGZvbylcblxuZGVmIHRlc3RfMShmb28sIGJhcik6XG4gICAgcHJpbnQoZm9vLCBiYXIpXG5cbmRlZiB0ZXN0XzIoYmFyKTpcbiAgICAuLi4ifQ==",
       "rules": [],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/refactor-pytest-fixtures.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/refactor-pytest-fixtures.md",
       "title": "Refactor pytest fixtures",
       "type": "YAML",
       "yaml_content": "utils:\n  is-fixture-function:\n    kind: function_definition\n    follows:\n      kind: decorator\n      has:\n        kind: identifier\n        regex: ^fixture$\n        stopBy: end\n  is-test-function:\n    kind: function_definition\n    has:\n      field: name\n      regex: ^test_"
@@ -699,7 +699,7 @@
         "pattern",
         "follows"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/use-walrus-operator-in-if.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/use-walrus-operator-in-if.md",
       "title": "Use Walrus Operator in `if` statement",
       "type": "YAML",
       "yaml_content": "id: use-walrus-operator\nlanguage: python\nrule:\n  pattern: \"if $VAR: $$$B\"\n  follows:\n    pattern:\n      context: $VAR = $$$EXPR\n      selector: expression_statement\nfix: |-\n  if $VAR := $$$EXPR:\n    $$$B"
@@ -715,7 +715,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/optional-to-none-union.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/python/optional-to-none-union.md",
       "title": "Rewrite `Optional[Type]` to `Type | None`",
       "type": "YAML",
       "yaml_content": "id: optional-to-none-union\nlanguage: python\nrule:\n  pattern:\n    context: 'a: Optional[$T]'\n    selector: generic_type\nfix: $T | None"
@@ -733,7 +733,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/kotlin/ensure-clean-architecture.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/kotlin/ensure-clean-architecture.md",
       "title": "Ensure Clean Architecture",
       "type": "YAML",
       "yaml_content": "id: import-dependency-violation\nmessage: Import Dependency Violation\nnotes: Ensures that imports comply with architectural rules.\nseverity: error\nrule:\n  pattern: import $PATH  # capture the import statement\nconstraints:\n  PATH: # find specific package imports\n    any:\n    - regex: com\\.example(\\.\\w+)*\\.data\n    - regex: com\\.example(\\.\\w+)*\\.presentation\nfiles:  # apply only to domain package\n- com/example/domain/**/*.kt"
@@ -750,7 +750,7 @@
         "kind",
         "has"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/go/find-func-declaration-with-prefix.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/go/find-func-declaration-with-prefix.md",
       "title": "Find function declarations with names of certain pattern",
       "type": "YAML",
       "yaml_content": "id: test-functions\nlanguage: go\nrule:\n  kind: function_declaration\n  has:\n    field: name\n    regex: Test.*"
@@ -766,7 +766,7 @@
       "rules": [
         "pattern"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/go/match-function-call.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/go/match-function-call.md",
       "title": "Match Function Call in Golang",
       "type": "YAML",
       "yaml_content": "id: match-function-call\nlanguage: go\nrule:\n  pattern:\n    context: 'func t() { fmt.Println($A) }'\n    selector: call_expression"
@@ -783,13 +783,13 @@
         "kind",
         "has"
       ],
-      "source_file": "/var/tmp/vibe-kanban/vk-ff35-organized/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/go/match-package-import.md",
+      "source_file": "/var/tmp/vibe-kanban/vk-0f8c-respect-mc/target/debug/build/organized-grepster-mcp-a639358d381b1d6e/out/ast-grep.github.io/website/catalog/go/match-package-import.md",
       "title": "Match package import in Golang",
       "type": "YAML",
       "yaml_content": "id: match-package-import\nlanguage: go\nrule:\n  kind: import_spec\n  has:\n    regex: PACKAGE_PATTERN_HERE"
     }
   ],
-  "generated_at": "2025-07-12T20:25:47.989159838+00:00",
+  "generated_at": "2025-07-12T20:36:39.969860791+00:00",
   "source": "ast-grep.github.io",
   "version": "1.0"
 }
