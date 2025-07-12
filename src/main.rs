@@ -18,10 +18,14 @@ async fn main() -> Result<()> {
     info!("Starting MCP ast-grep server");
 
     let handler = AstGrepServer::new();
+    info!("Handler created successfully");
+    
     let transport = rmcp::transport::io::stdio();
+    info!("Transport created, serving...");
 
     // Run the service with stdio transport
     let server = rmcp::service::serve_server(handler, transport).await?;
+    info!("Server started, waiting for connections");
     server.waiting().await?;
 
     Ok(())
