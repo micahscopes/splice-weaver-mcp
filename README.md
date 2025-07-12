@@ -1,4 +1,4 @@
-# MCP ast-grep Server
+# Splice Weaver MCP
 
 An MCP (Model Context Protocol) server that provides ast-grep functionality to language models with **automatic binary bundling** and dual support for both direct CLI access and guided workflows.
 
@@ -33,10 +33,10 @@ An MCP (Model Context Protocol) server that provides ast-grep functionality to l
 
 ```bash
 # From crates.io (once published)
-cargo install mcp-ast-grep
+cargo install splice-weaver-mcp
 
 # Or from Git
-cargo install --git https://github.com/your-org/mcp-ast-grep
+cargo install --git https://github.com/your-org/splice-weaver-mcp
 
 # For development
 cargo build --release
@@ -52,7 +52,7 @@ Add to your MCP client configuration:
   "mcp": {
     "servers": {
       "ast-grep": {
-        "command": "mcp-ast-grep",
+        "command": "splice-weaver-mcp",
         "args": []
       }
     }
@@ -64,10 +64,10 @@ Add to your MCP client configuration:
 
 ```bash
 # If installed via cargo install
-mcp-ast-grep
+splice-weaver-mcp
 
 # If built manually
-./target/release/mcp-ast-grep
+./target/release/splice-weaver-mcp
 ```
 
 ### Binary Management

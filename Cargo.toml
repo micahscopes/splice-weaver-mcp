@@ -1,9 +1,9 @@
 [package]
-name = "organized-grepster-mcp"
+name = "splice-weaver-mcp"
 version = "0.1.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
-description = "AST-powered semantic code editor for LLMs - precise, structure-aware editing across 20+ languages. Superior to text-based tools with scope navigation, surgical refactoring, and guided workflows for both large and small models."
+description = "Splice Weaver MCP - AST-powered semantic code editor for LLMs - precise, structure-aware editing across 20+ languages. Superior to text-based tools with scope navigation, surgical refactoring, and guided workflows for both large and small models."
 license = "MIT"
 build = "build.rs"
 
@@ -44,7 +44,7 @@ name = "mcp_ast_grep"
 path = "src/lib.rs"
 
 [[bin]]
-name = "organized-grepster-mcp"
+name = "splice-weaver-mcp"
 path = "src/main.rs"
 
 [[bin]]

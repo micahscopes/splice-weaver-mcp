@@ -1561,38 +1561,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
-name = "organized-grepster-mcp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "criterion",
- "flate2",
- "futures",
- "insta",
- "plotters",
- "regex",
- "reqwest",
- "rmcp",
- "rust-embed",
- "serde",
- "serde_json",
- "serde_yaml",
- "similar",
- "tar",
- "tempfile",
- "tokio",
- "tokio-test",
- "tracing",
- "tracing-subscriber",
- "unicode-normalization",
- "walkdir",
- "yaml-rust",
- "zip",
-]
-
-[[package]]
 name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2248,6 +2216,38 @@ checksum = "e22376abed350d73dd1cd119b57ffccad95b4e585a7cda43e286245ce23c0678"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "splice-weaver-mcp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "criterion",
+ "flate2",
+ "futures",
+ "insta",
+ "plotters",
+ "regex",
+ "reqwest",
+ "rmcp",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "similar",
+ "tar",
+ "tempfile",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "tracing-subscriber",
+ "unicode-normalization",
+ "walkdir",
+ "yaml-rust",
+ "zip",
 ]
 
 [[package]]

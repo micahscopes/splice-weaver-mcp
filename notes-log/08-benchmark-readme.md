@@ -349,4 +349,4 @@ To add new benchmark scenarios or improve the framework:
 
 ## License
 
-This benchmark framework is part of the organized-grepster-mcp project and follows the same license terms.
+This benchmark framework is part of the splice-weaver-mcp project and follows the same license terms.

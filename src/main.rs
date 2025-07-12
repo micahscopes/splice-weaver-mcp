@@ -72,11 +72,11 @@ impl ServerHandler for AstGrepServer {
                 .enable_prompts()
                 .build(),
             server_info: Implementation {
-                name: "mcp-ast-grep".to_string(),
+                name: "splice-weaver-mcp".to_string(),
                 version: "0.1.0".to_string(),
             },
             instructions: Some(
-                "Minimal ast-grep MCP server with scope navigation and rule execution tools"
+                "Splice Weaver MCP - ast-grep server with scope navigation and rule execution tools"
                     .to_string(),
             ),
         }
