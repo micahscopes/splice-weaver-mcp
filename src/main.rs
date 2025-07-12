@@ -1,30 +1,28 @@
 use anyhow::Result;
-use rmcp::{
-    ServerHandler,
-    model::*,
-    service::*,
-};
+use rmcp::{model::*, service::*, ServerHandler};
 use std::sync::Arc;
-use tracing::{info, error};
+use tracing::{error, info};
 
 mod ast_grep_tools;
+mod binary_manager;
 use ast_grep_tools::AstGrepTools;
+use binary_manager::BinaryManager;
 
 // All functionality now handled by AstGrepTools
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    
+
     info!("Starting MCP ast-grep server");
-    
+
     let handler = AstGrepServer::new();
     let transport = rmcp::transport::io::stdio();
-    
+
     // Run the service with stdio transport
     let server = rmcp::service::serve_server(handler, transport).await?;
     server.waiting().await?;
-    
+
     Ok(())
 }
 
@@ -33,9 +31,17 @@ pub struct AstGrepServer {
     tools: Arc<AstGrepTools>,
 }
 
+impl Default for AstGrepServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AstGrepServer {
     pub fn new() -> Self {
-        let tools = Arc::new(AstGrepTools::new());
+        let binary_manager =
+            Arc::new(BinaryManager::new().expect("Failed to initialize binary manager"));
+        let tools = Arc::new(AstGrepTools::new(binary_manager));
         Self { tools }
     }
 }
@@ -53,7 +59,10 @@ impl ServerHandler for AstGrepServer {
                 name: "mcp-ast-grep".to_string(),
                 version: "0.1.0".to_string(),
             },
-            instructions: Some("Minimal ast-grep MCP server with scope navigation and rule execution tools".to_string()),
+            instructions: Some(
+                "Minimal ast-grep MCP server with scope navigation and rule execution tools"
+                    .to_string(),
+            ),
         }
     }
 
@@ -124,7 +133,7 @@ impl ServerHandler for AstGrepServer {
                 })).unwrap()
             ),
         ];
-        
+
         Ok(ListToolsResult::with_all_items(tools))
     }
 
@@ -133,12 +142,18 @@ impl ServerHandler for AstGrepServer {
         request: CallToolRequestParam,
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, rmcp::Error> {
-        let args = request.arguments.map(|args| serde_json::Value::Object(args)).unwrap_or(serde_json::Value::Null);
+        let args = request
+            .arguments
+            .map(serde_json::Value::Object)
+            .unwrap_or(serde_json::Value::Null);
         match self.tools.call_tool(&request.name, args).await {
             Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
             Err(e) => {
                 error!("Tool execution failed: {}", e);
-                Err(rmcp::Error::invalid_params(format!("Tool execution failed: {}", e), None))
+                Err(rmcp::Error::invalid_params(
+                    format!("Tool execution failed: {e}"),
+                    None,
+                ))
             }
         }
     }
@@ -159,9 +174,12 @@ impl ServerHandler for AstGrepServer {
     ) -> Result<ReadResourceResult, rmcp::Error> {
         match self.tools.read_resource(&request.uri) {
             Ok(content) => Ok(ReadResourceResult {
-                contents: vec![ResourceContents::text(content, request.uri.clone())]
+                contents: vec![ResourceContents::text(content, request.uri.clone())],
             }),
-            Err(e) => Err(rmcp::Error::invalid_params(format!("Resource not found: {}", e), None)),
+            Err(e) => Err(rmcp::Error::invalid_params(
+                format!("Resource not found: {e}"),
+                None,
+            )),
         }
     }
 
@@ -180,13 +198,17 @@ impl ServerHandler for AstGrepServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<GetPromptResult, rmcp::Error> {
         let arguments = request.arguments.unwrap_or_default();
-        let arguments_hashmap: std::collections::HashMap<String, serde_json::Value> = arguments.into_iter().collect();
+        let arguments_hashmap: std::collections::HashMap<String, serde_json::Value> =
+            arguments.into_iter().collect();
         match self.tools.get_prompt(&request.name, arguments_hashmap) {
             Ok(content) => Ok(GetPromptResult {
                 description: None,
-                messages: vec![PromptMessage::new_text(PromptMessageRole::User, content)]
+                messages: vec![PromptMessage::new_text(PromptMessageRole::User, content)],
             }),
-            Err(e) => Err(rmcp::Error::invalid_params(format!("Prompt not found: {}", e), None)),
+            Err(e) => Err(rmcp::Error::invalid_params(
+                format!("Prompt not found: {e}"),
+                None,
+            )),
         }
     }
 }

@@ -1,49 +1,60 @@
-use anyhow::{Result, anyhow};
-use serde_json::Value;
-use tokio::process::Command as TokioCommand;
+use crate::binary_manager::BinaryManager;
+use anyhow::{anyhow, Result};
 use rmcp::model::*;
+use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::process::Command as TokioCommand;
 
-pub struct AstGrepTools;
+pub struct AstGrepTools {
+    binary_manager: Arc<BinaryManager>,
+}
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct Position {
     line: u32,
     column: u32,
 }
 
 impl AstGrepTools {
-    pub fn new() -> Self {
-        Self
+    pub fn new(binary_manager: Arc<BinaryManager>) -> Self {
+        Self { binary_manager }
     }
-    
+
     pub async fn call_tool(&self, tool_name: &str, arguments: Value) -> Result<String> {
         match tool_name {
             "find_scope" => self.find_scope(arguments).await,
             "execute_rule" => self.execute_rule(arguments).await,
-            _ => Err(anyhow!("Unknown tool: {}", tool_name))
+            _ => Err(anyhow!("Unknown tool: {}", tool_name)),
         }
     }
-    
+
     async fn find_scope(&self, args: Value) -> Result<String> {
         let code = args["code"].as_str().ok_or(anyhow!("Missing code"))?;
-        let language = args["language"].as_str().ok_or(anyhow!("Missing language"))?;
+        let language = args["language"]
+            .as_str()
+            .ok_or(anyhow!("Missing language"))?;
         let _position: Position = serde_json::from_value(args["position"].clone())
             .map_err(|_| anyhow!("Missing or invalid position"))?;
-        let scope_rule = args["scope_rule"].as_str().ok_or(anyhow!("Missing scope_rule"))?;
-        
+        let scope_rule = args["scope_rule"]
+            .as_str()
+            .ok_or(anyhow!("Missing scope_rule"))?;
+
         // Create a temporary rule file with position-aware matching
         let temp_rule_file = std::env::temp_dir().join("find_scope_rule.yml");
-        
+
         // For now, we'll use the provided rule directly
         // In a more sophisticated implementation, we'd inject position constraints
         tokio::fs::write(&temp_rule_file, scope_rule).await?;
-        
+
         // Write code to temporary file for processing
-        let temp_code_file = std::env::temp_dir().join(format!("code.{}", self.get_file_extension(language)?));
+        let temp_code_file =
+            std::env::temp_dir().join(format!("code.{}", self.get_file_extension(language)?));
         tokio::fs::write(&temp_code_file, code).await?;
-        
-        let output = TokioCommand::new("ast-grep")
+
+        let binary_path = self.binary_manager.ensure_binary().await?;
+        let output = TokioCommand::new(&binary_path)
             .arg("scan")
             .arg("--rule")
             .arg(&temp_rule_file)
@@ -51,32 +62,35 @@ impl AstGrepTools {
             .arg("--json")
             .output()
             .await?;
-        
+
         // Cleanup
         tokio::fs::remove_file(temp_rule_file).await.ok();
         tokio::fs::remove_file(temp_code_file).await.ok();
-        
+
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(anyhow!("ast-grep failed: {}", stderr));
         }
-        
+
         let stdout = String::from_utf8_lossy(&output.stdout);
         Ok(stdout.to_string())
     }
-    
+
     async fn execute_rule(&self, args: Value) -> Result<String> {
-        let rule_config = args["rule_config"].as_str().ok_or(anyhow!("Missing rule_config"))?;
+        let rule_config = args["rule_config"]
+            .as_str()
+            .ok_or(anyhow!("Missing rule_config"))?;
         let target = args["target"].as_str().ok_or(anyhow!("Missing target"))?;
         let operation = args["operation"].as_str().unwrap_or("search");
         let dry_run = args["dry_run"].as_bool().unwrap_or(true);
-        
+
         // Create temporary rule file
         let temp_rule_file = std::env::temp_dir().join("execute_rule.yml");
         tokio::fs::write(&temp_rule_file, rule_config).await?;
-        
-        let mut cmd = TokioCommand::new("ast-grep");
-        
+
+        let binary_path = self.binary_manager.ensure_binary().await?;
+        let mut cmd = TokioCommand::new(&binary_path);
+
         match operation {
             "search" => {
                 cmd.arg("scan")
@@ -84,41 +98,41 @@ impl AstGrepTools {
                     .arg(&temp_rule_file)
                     .arg(target)
                     .arg("--json");
-            },
+            }
             "replace" => {
                 cmd.arg("scan")
                     .arg("--rule")
                     .arg(&temp_rule_file)
                     .arg(target)
                     .arg("--json");
-                
+
                 if dry_run {
                     cmd.arg("--dry-run");
                 }
-            },
+            }
             "scan" => {
                 cmd.arg("scan")
                     .arg("--rule")
                     .arg(&temp_rule_file)
                     .arg(target)
                     .arg("--json");
-            },
-            _ => return Err(anyhow!("Unknown operation: {}", operation))
+            }
+            _ => return Err(anyhow!("Unknown operation: {}", operation)),
         }
-        
+
         let output = cmd.output().await?;
-        
+
         tokio::fs::remove_file(temp_rule_file).await.ok();
-        
+
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(anyhow!("ast-grep failed: {}", stderr));
         }
-        
+
         let stdout = String::from_utf8_lossy(&output.stdout);
         Ok(stdout.to_string())
     }
-    
+
     fn get_file_extension(&self, language: &str) -> Result<&str> {
         match language {
             "javascript" => Ok("js"),
@@ -129,7 +143,7 @@ impl AstGrepTools {
             "go" => Ok("go"),
             "cpp" | "c++" => Ok("cpp"),
             "c" => Ok("c"),
-            _ => Err(anyhow!("Unsupported language: {}", language))
+            _ => Err(anyhow!("Unsupported language: {}", language)),
         }
     }
 
@@ -139,7 +153,9 @@ impl AstGrepTools {
                 RawResource {
                     uri: "ast-grep://binary-path".to_string(),
                     name: "AST-Grep Binary Path".to_string(),
-                    description: Some("Path to the ast-grep executable for direct CLI access".to_string()),
+                    description: Some(
+                        "Path to the ast-grep executable for direct CLI access".to_string(),
+                    ),
                     mime_type: Some("text/plain".to_string()),
                     size: None,
                 },
@@ -149,7 +165,9 @@ impl AstGrepTools {
                 RawResource {
                     uri: "ast-grep://cli-reference".to_string(),
                     name: "CLI Reference".to_string(),
-                    description: Some("Complete ast-grep CLI documentation and command reference".to_string()),
+                    description: Some(
+                        "Complete ast-grep CLI documentation and command reference".to_string(),
+                    ),
                     mime_type: Some("text/markdown".to_string()),
                     size: None,
                 },
@@ -159,7 +177,9 @@ impl AstGrepTools {
                 RawResource {
                     uri: "ast-grep://rule-examples".to_string(),
                     name: "Rule Configuration Examples".to_string(),
-                    description: Some("Examples of YAML rule configurations for common use cases".to_string()),
+                    description: Some(
+                        "Examples of YAML rule configurations for common use cases".to_string(),
+                    ),
                     mime_type: Some("text/yaml".to_string()),
                     size: None,
                 },
@@ -169,7 +189,10 @@ impl AstGrepTools {
                 RawResource {
                     uri: "ast-grep://relational-patterns".to_string(),
                     name: "Relational Pattern Examples".to_string(),
-                    description: Some("Examples of inside/has/follows relational rules for scope navigation".to_string()),
+                    description: Some(
+                        "Examples of inside/has/follows relational rules for scope navigation"
+                            .to_string(),
+                    ),
                     mime_type: Some("text/yaml".to_string()),
                     size: None,
                 },
@@ -179,7 +202,9 @@ impl AstGrepTools {
                 RawResource {
                     uri: "ast-grep://node-kinds".to_string(),
                     name: "Tree-sitter Node Kinds".to_string(),
-                    description: Some("Tree-sitter node types by language for kind-based rules".to_string()),
+                    description: Some(
+                        "Tree-sitter node types by language for kind-based rules".to_string(),
+                    ),
                     mime_type: Some("text/markdown".to_string()),
                     size: None,
                 },
@@ -299,31 +324,21 @@ impl AstGrepTools {
 
     // Resource Content Methods
     fn get_binary_path(&self) -> Result<String> {
-        // Try to find ast-grep in PATH
-        match std::process::Command::new("which").arg("ast-grep").output() {
-            Ok(output) if output.status.success() => {
-                Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-            },
-            _ => {
-                // Fallback to common locations
-                let common_paths = [
-                    "/usr/local/bin/ast-grep",
-                    "/usr/bin/ast-grep",
-                    "/opt/homebrew/bin/ast-grep",
-                    "ast-grep", // Assume it's in PATH
-                ];
-                for path in &common_paths {
-                    if std::path::Path::new(path).exists() || path == &"ast-grep" {
-                        return Ok(path.to_string());
-                    }
-                }
-                Err(anyhow!("ast-grep binary not found"))
-            }
-        }
+        self.binary_manager.get_binary_path()
     }
 
     fn get_cli_reference(&self) -> Result<String> {
-        Ok(r#"# AST-Grep CLI Reference
+        let binary_path = self
+            .get_binary_path()
+            .unwrap_or_else(|_| "ast-grep".to_string());
+
+        Ok(format!(
+            r#"# AST-Grep CLI Reference
+
+## Binary Information
+- **Bundled Binary Path**: `{binary_path}`
+- **Version**: 0.38.7
+- **Auto-download**: Binary is automatically downloaded if not found
 
 ## Core Commands
 - `ast-grep run` - One-time search/rewrite (default command)
@@ -335,16 +350,39 @@ impl AstGrepTools {
 ## Basic Usage
 ```bash
 # Search for patterns
-ast-grep run --pattern 'console.log($$$)' --lang javascript src/
+{binary_path} run --pattern 'console.log($$$)' --lang javascript src/
 
 # Replace patterns
-ast-grep run --pattern 'var $VAR = $VALUE' --rewrite 'const $VAR = $VALUE' --lang javascript src/
+{binary_path} run --pattern 'var $VAR = $VALUE' --rewrite 'const $VAR = $VALUE' --lang javascript src/
 
 # Scan with rules
-ast-grep scan --rule rule.yml src/
+{binary_path} scan --rule rule.yml src/
 
 # Interactive mode
-ast-grep run --pattern 'old()' --rewrite 'new()' --interactive src/
+{binary_path} run --pattern 'old()' --rewrite 'new()' --interactive src/
+
+# Get help
+{binary_path} --help
+{binary_path} run --help
+{binary_path} scan --help
+```
+
+## Advanced Options
+```bash
+# JSON output
+{binary_path} scan --rule rule.yml --json src/
+
+# Dry run (preview changes)
+{binary_path} run --pattern 'old' --rewrite 'new' --dry-run src/
+
+# Specify language explicitly
+{binary_path} run --pattern '$VAR = $VALUE' --lang typescript src/
+
+# Multiple files/directories
+{binary_path} scan --rule rule.yml src/ tests/ lib/
+
+# Ignore patterns
+{binary_path} run --pattern 'debug($$$)' --ignore '**/node_modules/**' src/
 ```
 
 ## Rule Format
@@ -356,12 +394,35 @@ severity: warning
 rule:
   pattern: "console.log($$$)"
   # OR kind: call_expression
-  # OR relational rules
+  # OR relational rules (inside, has, follows, precedes)
 fix: "console.debug($$$)"  # Optional
 ```
 
-See official docs: https://ast-grep.github.io/reference/cli.html
-"#.to_string())
+## File Extensions by Language
+- JavaScript: `.js`, `.jsx`, `.mjs`
+- TypeScript: `.ts`, `.tsx`
+- Python: `.py`
+- Rust: `.rs`
+- Java: `.java`
+- Go: `.go`
+- C/C++: `.c`, `.cpp`, `.h`, `.hpp`
+
+## Configuration
+ast-grep uses `sgconfig.yml` for project configuration:
+```yaml
+ruleDirs: ["rules"]
+testConfigs:
+  - testDir: tests
+    snapshots: __snapshots__
+```
+
+## Resources
+- Official Documentation: https://ast-grep.github.io/
+- CLI Reference: https://ast-grep.github.io/reference/cli.html
+- Rule Reference: https://ast-grep.github.io/reference/rule.html
+- Pattern Syntax: https://ast-grep.github.io/reference/pattern.html
+"#
+        ))
     }
 
     fn get_rule_examples(&self) -> Result<String> {
@@ -404,7 +465,8 @@ language: javascript
 rule:
   pattern: "try { $$$ } catch ($ERROR) { $$$ }"
 ```
-"#.to_string())
+"#
+        .to_string())
     }
 
     fn get_relational_patterns(&self) -> Result<String> {
@@ -465,7 +527,8 @@ rule:
     - inside:
         pattern: "function $METHOD($$$) { $$$ }"
 ```
-"#.to_string())
+"#
+        .to_string())
     }
 
     fn get_node_kinds(&self) -> Result<String> {
@@ -519,7 +582,8 @@ ast-grep run --pattern '$ANY' --lang <language> <file> --debug-query
 ```
 
 Or use the `generate_ast` MCP tool with sample code.
-"#.to_string())
+"#
+        .to_string())
     }
 
     fn get_cheatsheet_rules(&self) -> Result<String> {
@@ -842,13 +906,23 @@ ignores: ['test/**/*.js']
 
     // Prompt Methods - Mad Libs Style Templates
     fn scope_navigation_rule_prompt(&self, args: HashMap<String, Value>) -> Result<String> {
-        let scope_type = args.get("scope_type").and_then(|v| v.as_str()).unwrap_or("function");
-        let target_pattern = args.get("target_pattern").and_then(|v| v.as_str()).unwrap_or("console.log");
-        let language = args.get("language").and_then(|v| v.as_str()).unwrap_or("javascript");
-        
+        let scope_type = args
+            .get("scope_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("function");
+        let target_pattern = args
+            .get("target_pattern")
+            .and_then(|v| v.as_str())
+            .unwrap_or("console.log");
+        let language = args
+            .get("language")
+            .and_then(|v| v.as_str())
+            .unwrap_or("javascript");
+
         let scope_pattern = self.get_scope_pattern(scope_type, language)?;
-        
-        let template = format!(r#"To find {scope_type} containing {target_pattern} in {language}:
+
+        let template = format!(
+            r#"To find {scope_type} containing {target_pattern} in {language}:
 
 ```yaml
 id: find-{scope_type}-with-{}
@@ -866,20 +940,33 @@ Use this rule with the execute_rule tool:
 - rule_config: (paste the YAML above)
 - target: (your file or directory path)
 - operation: "search"
-"#, target_pattern.replace(' ', "-"), scope_pattern = scope_pattern);
-        
+"#,
+            target_pattern.replace(' ', "-"),
+            scope_pattern = scope_pattern
+        );
+
         Ok(template)
     }
-    
+
     fn transform_in_scope_prompt(&self, args: HashMap<String, Value>) -> Result<String> {
-        let what = args.get("what").and_then(|v| v.as_str()).unwrap_or("var to const");
-        let scope_type = args.get("scope_type").and_then(|v| v.as_str()).unwrap_or("function");
-        let language = args.get("language").and_then(|v| v.as_str()).unwrap_or("javascript");
-        
+        let what = args
+            .get("what")
+            .and_then(|v| v.as_str())
+            .unwrap_or("var to const");
+        let scope_type = args
+            .get("scope_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("function");
+        let language = args
+            .get("language")
+            .and_then(|v| v.as_str())
+            .unwrap_or("javascript");
+
         let scope_pattern = self.get_scope_pattern(scope_type, language)?;
         let (target_pattern, fix_pattern) = self.get_transform_patterns(what, language)?;
-        
-        let template = format!(r#"To transform {what} within {scope_type} in {language}:
+
+        let template = format!(
+            r#"To transform {what} within {scope_type} in {language}:
 
 ```yaml
 id: transform-{}-in-{}
@@ -899,11 +986,14 @@ Use this rule with the execute_rule tool:
 - target: (your file or directory path)
 - operation: "replace"
 - dry_run: true (to preview changes)
-"#, what.replace(' ', "-"), scope_type.replace(' ', "-"));
-        
+"#,
+            what.replace(' ', "-"),
+            scope_type.replace(' ', "-")
+        );
+
         Ok(template)
     }
-    
+
     fn get_scope_pattern(&self, scope_type: &str, language: &str) -> Result<String> {
         let pattern = match (scope_type, language) {
             ("function", "javascript" | "typescript") => "pattern: \"function $NAME($$$) { $$$ }\"",
@@ -916,18 +1006,36 @@ Use this rule with the execute_rule tool:
             ("loop", "rust") => "pattern: \"for $VAR in $ITER { $$$ }\"",
             ("loop", "python") => "pattern: \"for $VAR in $ITER: $$$\"",
             ("block", _) => "pattern: \"{ $$$ }\"",
-            _ => return Err(anyhow!("Unsupported scope type '{}' for language '{}'", scope_type, language))
+            _ => {
+                return Err(anyhow!(
+                    "Unsupported scope type '{}' for language '{}'",
+                    scope_type,
+                    language
+                ))
+            }
         };
         Ok(pattern.to_string())
     }
-    
+
     fn get_transform_patterns(&self, what: &str, language: &str) -> Result<(String, String)> {
         let (target, fix) = match (what, language) {
-            ("var to const", "javascript" | "typescript") => ("var $VAR = $VALUE", "const $VAR = $VALUE"),
-            ("function to arrow", "javascript" | "typescript") => ("function($$$) { $$$ }", "($$$) => { $$$ }"),
-            ("callback to async", "javascript" | "typescript") => ("function($$$) { $$$ }", "async function($$$) { $$$ }"),
+            ("var to const", "javascript" | "typescript") => {
+                ("var $VAR = $VALUE", "const $VAR = $VALUE")
+            }
+            ("function to arrow", "javascript" | "typescript") => {
+                ("function($$$) { $$$ }", "($$$) => { $$$ }")
+            }
+            ("callback to async", "javascript" | "typescript") => {
+                ("function($$$) { $$$ }", "async function($$$) { $$$ }")
+            }
             ("print to print function", "python") => ("print $ARGS", "print($ARGS)"),
-            _ => return Err(anyhow!("Unsupported transformation '{}' for language '{}'", what, language))
+            _ => {
+                return Err(anyhow!(
+                    "Unsupported transformation '{}' for language '{}'",
+                    what,
+                    language
+                ))
+            }
         };
         Ok((target.to_string(), fix.to_string()))
     }
