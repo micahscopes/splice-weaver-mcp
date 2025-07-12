@@ -1,5 +1,5 @@
 [package]
-name = "ast-edit-mcp"
+name = "structured-grepster"
 version = "0.1.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
@@ -34,7 +34,7 @@ name = "mcp_ast_grep"
 path = "src/lib.rs"
 
 [[bin]]
-name = "ast-edit-mcp"
+name = "structured-grepster"
 path = "src/main.rs"
 
 [[bin]]
