@@ -1,0 +1,77 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 205
+expression: results
+---
+- metadata:
+    test_name: Consistency check_run_0
+    model_name: test-model
+    timestamp: 1752363980
+    git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+    prompt_hash: 1326b7a471a2095b
+  evaluation_result:
+    prompt: "Count the number of functions in this code: function a() {} function b() {} function c() {}"
+    response: There are 3 functions in the provided code.
+    duration_ms: 10552
+    tool_calls_made: 0
+    success: true
+    timestamp: 1752363980
+    model_name: test-model
+    tool_calls: []
+    conversation_length: 2
+  response_analysis:
+    contains_tool_calls: false
+    contains_code: false
+    contains_error: false
+    word_count: 8
+    sentiment: Neutral
+    success_indicators: []
+    failure_indicators: []
+- metadata:
+    test_name: Consistency check_run_1
+    model_name: test-model
+    timestamp: 1752363984
+    git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+    prompt_hash: 1326b7a471a2095b
+  evaluation_result:
+    prompt: "Count the number of functions in this code: function a() {} function b() {} function c() {}"
+    response: "Let me count the number of functions in the provided code.[TOOL_CALLS]execute_rule[ARGS]{\"rule_config\": \"(\\n  functions:\\n    pattern: \\\"function $name() {}\\\"\\n    metrics:\\n      - count\\n)\", \"target\": \"a.js\"}"
+    duration_ms: 3899
+    tool_calls_made: 0
+    success: true
+    timestamp: 1752363984
+    model_name: test-model
+    tool_calls: []
+    conversation_length: 2
+  response_analysis:
+    contains_tool_calls: false
+    contains_code: true
+    contains_error: false
+    word_count: 22
+    sentiment: Neutral
+    success_indicators: []
+    failure_indicators: []
+- metadata:
+    test_name: Consistency check_run_2
+    model_name: test-model
+    timestamp: 1752363986
+    git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+    prompt_hash: 1326b7a471a2095b
+  evaluation_result:
+    prompt: "Count the number of functions in this code: function a() {} function b() {} function c() {}"
+    response: The code contains 3 functions.
+    duration_ms: 2152
+    tool_calls_made: 0
+    success: true
+    timestamp: 1752363986
+    model_name: test-model
+    tool_calls: []
+    conversation_length: 2
+  response_analysis:
+    contains_tool_calls: false
+    contains_code: false
+    contains_error: false
+    word_count: 5
+    sentiment: Neutral
+    success_indicators: []
+    failure_indicators: []

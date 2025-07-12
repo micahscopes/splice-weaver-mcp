@@ -1,0 +1,29 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 81
+expression: snapshot
+---
+metadata:
+  test_name: Code refactoring
+  model_name: test-model
+  timestamp: 1752363970
+  git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+  prompt_hash: 455d75e928f726db
+evaluation_result:
+  prompt: "Replace all console.log statements with logger.info in this code: console.log('hello'); console.log('world');"
+  response: "I'll help you replace the `console.log` statements with `logger.info`. Could you please provide me with the file path or the specific code where these statements are located?"
+  duration_ms: 658
+  tool_calls_made: 0
+  success: true
+  timestamp: 1752363970
+  model_name: test-model
+  tool_calls: []
+  conversation_length: 2
+response_analysis:
+  contains_tool_calls: false
+  contains_code: false
+  contains_error: false
+  word_count: 27
+  sentiment: Helpful
+  success_indicators: []
+  failure_indicators: []

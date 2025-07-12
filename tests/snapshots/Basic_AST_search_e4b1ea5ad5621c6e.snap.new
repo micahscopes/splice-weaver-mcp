@@ -1,0 +1,38 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 81
+expression: snapshot
+---
+metadata:
+  test_name: Basic AST search
+  model_name: test-model
+  timestamp: 1752363985
+  git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+  prompt_hash: e4b1ea5ad5621c6e
+evaluation_result:
+  prompt: "Search for all function declarations in this JavaScript code: function hello() { return 'world'; }"
+  response: "Here's the function declaration found in your JavaScript code:\n\n```javascript\nfunction hello() { return 'world'; }\n```\n\nThis matches the pattern for a regular function declaration without async or other modifiers."
+  duration_ms: 15605
+  tool_calls_made: 1
+  success: true
+  timestamp: 1752363985
+  model_name: test-model
+  tool_calls:
+    - tool_name: execute_rule
+      arguments:
+        operation: search
+        rule_config: "function:\n  patterns:\n    - \"$FUNC(function $name(...$params) { ... })\"\n  filters:\n    function:\n      modifiers: []\n        # Exclude arrow functions and async functions\n        - \"~async\"\n        - \"~*\""
+        target: "function hello() { return 'world'; }"
+      result: Simulated result
+      success: true
+      duration_ms: 0
+  conversation_length: 4
+response_analysis:
+  contains_tool_calls: true
+  contains_code: true
+  contains_error: false
+  word_count: 31
+  sentiment: Neutral
+  success_indicators:
+    - found
+  failure_indicators: []

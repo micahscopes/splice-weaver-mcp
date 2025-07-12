@@ -200,11 +200,14 @@ impl AstGrepTools {
                 cmd.arg("scan")
                     .arg("--rule")
                     .arg(&temp_rule_file)
-                    .arg(&resolved_target)
-                    .arg("--json");
+                    .arg(&resolved_target);
 
                 if dry_run {
-                    cmd.arg("--dry-run");
+                    // When dry_run is true, add --json to get structured output without applying
+                    cmd.arg("--json");
+                } else {
+                    // When dry_run is false, apply the fixes using -U without --json
+                    cmd.arg("-U");
                 }
             }
             "scan" => {

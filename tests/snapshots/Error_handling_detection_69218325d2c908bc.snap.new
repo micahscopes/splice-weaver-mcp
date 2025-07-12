@@ -1,0 +1,30 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 81
+expression: snapshot
+---
+metadata:
+  test_name: Error handling detection
+  model_name: test-model
+  timestamp: 1752363971
+  git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+  prompt_hash: 69218325d2c908bc
+evaluation_result:
+  prompt: "Find all try-catch blocks and error handling patterns in this JavaScript code: try { riskyOperation(); } catch (e) { console.error(e); }"
+  response: "I'll help you find all the try-catch blocks and error handling patterns in your JavaScript code. Could you please provide the specific file or code that you want me to analyze?"
+  duration_ms: 1317
+  tool_calls_made: 0
+  success: true
+  timestamp: 1752363971
+  model_name: test-model
+  tool_calls: []
+  conversation_length: 2
+response_analysis:
+  contains_tool_calls: false
+  contains_code: false
+  contains_error: true
+  word_count: 31
+  sentiment: Helpful
+  success_indicators: []
+  failure_indicators:
+    - error

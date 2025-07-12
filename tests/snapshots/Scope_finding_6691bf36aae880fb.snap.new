@@ -1,0 +1,40 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 81
+expression: snapshot
+---
+metadata:
+  test_name: Scope finding
+  model_name: test-model
+  timestamp: 1752363986
+  git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+  prompt_hash: 6691bf36aae880fb
+evaluation_result:
+  prompt: "Find the containing scope around line 1, column 10 in this code: function test() { const x = 1; return x; }"
+  response: "The containing scope around line 1, column 10 in the code `function test() { const x = 1; return x; }` is a function scope defined by the `test` function."
+  duration_ms: 16338
+  tool_calls_made: 1
+  success: true
+  timestamp: 1752363986
+  model_name: test-model
+  tool_calls:
+    - tool_name: find_scope
+      arguments:
+        code: "function test() { const x = 1; return x; }"
+        language: javascript
+        position:
+          column: 10
+          line: 1
+        scope_rule: function
+      result: Simulated result
+      success: true
+      duration_ms: 0
+  conversation_length: 4
+response_analysis:
+  contains_tool_calls: true
+  contains_code: true
+  contains_error: false
+  word_count: 30
+  sentiment: Neutral
+  success_indicators: []
+  failure_indicators: []

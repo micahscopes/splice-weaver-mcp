@@ -1,0 +1,31 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 81
+expression: snapshot
+---
+metadata:
+  test_name: Complex multi-step query
+  model_name: test-model
+  timestamp: 1752363980
+  git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+  prompt_hash: 82d86d08e11d917a
+evaluation_result:
+  prompt: "First find all function declarations, then analyze their parameters, and finally suggest refactoring opportunities for this code: function calculateTotal(items) { let sum = 0; for (let item of items) { sum += item.price; } return sum; }"
+  response: "I'll help you analyze the given JavaScript function and suggest refactoring opportunities. Let's start by examining the function declaration and its parameters.\n\n### Function Analysis\n\nThe given code is:\n```javascript\nfunction calculateTotal(items) {\n    let sum = 0;\n    for (let item of items) {\n        sum += item.price;\n    }\n    return sum;\n}\n```\n\n1. **Function Declaration**: `function calculateTotal(items)`\n   - Name: `calculateTotal`\n   - Parameter: `items`\n\n2. **Parameter Analysis**:\n   - `items`: This appears to be an array of objects where each object has a `price` property.\n\n3. **Functionality**:\n   - Initializes a sum variable to 0\n   - Iterates through each item in the items array\n   - Adds the price of each item to the sum\n   - Returns the total sum\n\n### Refactoring Opportunities\n\n1. **Use Array.reduce()**: This is more functional and concise\n2. **Type Safety**: Add parameter validation\n3. **Error Handling**: Handle cases where items might not be an array or prices might be undefined\n4. **Naming**: Ensure descriptive naming (though the current name is reasonable)\n5. **JSDoc Comments**: Add documentation for better maintainability\n\n### Suggested Refactoring\n\nHere's a refactored version with these improvements:\n\n```javascript\n/**\n * Calculates the total price of all items in an array.\n *\n * @param {Array<{price: number}>} items - Array of items with price properties\n * @returns {number} The total sum of prices\n * @throws {TypeError} If items is not an array or contains invalid prices\n */\nfunction calculateTotal(items) {\n    if (!Array.isArray(items)) {\n        throw new TypeError('Expected an array of items');\n    }\n\n    return items.reduce((sum, item) => {\n        const price = item?.price;\n        if (typeof price !== 'number' || isNaN(price)) {\n            throw new TypeError(`Invalid price value for item: ${JSON.stringify(item)}`);\n        }\n        return sum + price;\n    }, 0);\n}\n```\n\n### Key Improvements:\n\n1. **Array.reduce()**: Replaces the manual loop with a more declarative approach\n2. **Type Checking**: Validates that input is an array\n3. **Error Handling**: Checks for valid price values and throws descriptive errors\n4. **Optional Chaining**: Uses `item?.price` to safely access price property\n5. **JSDoc Documentation**: Provides clear documentation about expected parameters and return values\n\nThis refactored version maintains the same functionality while being more robust, readable, and maintainable.\n\nWould you like me to analyze any other functions or provide additional refactoring suggestions?"
+  duration_ms: 10351
+  tool_calls_made: 0
+  success: true
+  timestamp: 1752363980
+  model_name: test-model
+  tool_calls: []
+  conversation_length: 2
+response_analysis:
+  contains_tool_calls: false
+  contains_code: true
+  contains_error: true
+  word_count: 360
+  sentiment: Helpful
+  success_indicators: []
+  failure_indicators:
+    - error
+    - invalid
