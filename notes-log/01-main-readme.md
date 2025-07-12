@@ -95,16 +95,6 @@ This server implements a **dual approach** to ast-grep access:
 
 For complete ast-grep documentation, visit: https://ast-grep.github.io/
 
-## Documentation
-
-Comprehensive project documentation is available in the [`notes-log/`](notes-log/) directory:
-
-- **[Project Evolution Summary](notes-log/00-project-evolution-summary.md)** - Complete overview and goals
-- **[Design Decisions](notes-log/02-design-decisions.md)** - Architecture and research-driven design
-- **[Interface Summary](notes-log/03-interface-summary.md)** - Technical implementation details
-- **[Testing Guide](notes-log/06-testing-guide.md)** - Comprehensive testing approach
-- **[Full Documentation Index](notes-log/README.md)** - Complete navigation guide
-
 ## License
 
 MIT
