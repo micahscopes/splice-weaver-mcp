@@ -789,7 +789,7 @@
       "yaml_content": "id: match-package-import\nlanguage: go\nrule:\n  kind: import_spec\n  has:\n    regex: PACKAGE_PATTERN_HERE"
     }
   ],
-  "generated_at": "2025-07-12T23:52:27.708704234+00:00",
+  "generated_at": "2025-07-12T23:56:09.435633196+00:00",
   "source": "ast-grep.github.io",
   "version": "1.0"
 }
