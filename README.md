@@ -32,14 +32,8 @@ An MCP (Model Context Protocol) server that provides ast-grep functionality to l
 ## Installation
 
 ```bash
-# From crates.io (once published)
-cargo install splice-weaver-mcp
-
-# Or from Git
-cargo install --git https://github.com/your-org/splice-weaver-mcp
-
-# For development
-cargo build --release
+# From GitHub
+cargo install --git https://github.com/micahscopes/splice-weaver-mcp
 ```
 
 ## Usage
