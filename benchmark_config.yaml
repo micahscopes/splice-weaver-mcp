@@ -1,0 +1,96 @@
+name: "LLM AST-grep Performance Benchmark"
+description: "Comprehensive evaluation of LLM performance with AST-grep MCP server"
+iterations: 10
+timeout_seconds: 30
+
+models:
+  - name: "gpt-3.5-turbo"
+    endpoint: "http://localhost:1234/v1"
+    api_key: null
+    parameters:
+      temperature: 0.7
+      max_tokens: 1000
+  
+  - name: "gpt-4"
+    endpoint: "http://localhost:1234/v1"
+    api_key: null
+    parameters:
+      temperature: 0.7
+      max_tokens: 1000
+  
+  - name: "claude-3-sonnet"
+    endpoint: "http://localhost:1234/v1"
+    api_key: null
+    parameters:
+      temperature: 0.7
+      max_tokens: 1000
+
+test_scenarios:
+  - name: "Basic Function Search"
+    category: "AST Search"
+    prompt: "Find all function declarations in this JavaScript code: function hello() { return 'world'; } const greet = () => 'hi';"
+    expected_tools: ["execute_rule"]
+    success_criteria: "tool_calls > 0 && response.contains('function')"
+    weight: 1.0
+    
+  - name: "Variable Refactoring"
+    category: "Code Transformation"
+    prompt: "Replace all var declarations with const/let in: var x = 1; var y = 2; function test() { var z = 3; }"
+    expected_tools: ["execute_rule"]
+    success_criteria: "tool_calls > 0 && response.contains('const') || response.contains('let')"
+    weight: 1.5
+    
+  - name: "Scope Analysis"
+    category: "Structural Analysis"
+    prompt: "Find the containing scope around line 1, column 15 in: function outer() { function inner() { const x = 1; } }"
+    expected_tools: ["find_scope"]
+    success_criteria: "tool_calls > 0 && success == true"
+    weight: 2.0
+    
+  - name: "Error Handling Patterns"
+    category: "Pattern Recognition"
+    prompt: "Find all try-catch blocks and identify error handling patterns in: try { riskyOperation(); } catch (e) { console.error(e); } finally { cleanup(); }"
+    expected_tools: ["execute_rule"]
+    success_criteria: "tool_calls > 0 && response.contains('try') && response.contains('catch')"
+    weight: 1.5
+    
+  - name: "Complex Refactoring"
+    category: "Advanced Transformation"
+    prompt: "Modernize this React class component to functional component with hooks: class Counter extends React.Component { constructor(props) { super(props); this.state = { count: 0 }; } render() { return <div>{this.state.count}</div>; } }"
+    expected_tools: ["execute_rule"]
+    success_criteria: "tool_calls > 0 && response.contains('useState') || response.contains('function')"
+    weight: 3.0
+    
+  - name: "Multi-Language Support"
+    category: "Language Coverage"
+    prompt: "Find all function definitions in this Python code: def hello(): return 'world'\nclass Test: def method(self): pass"
+    expected_tools: ["execute_rule"]
+    success_criteria: "tool_calls > 0 && response.contains('def')"
+    weight: 1.5
+    
+  - name: "Rust Pattern Matching"
+    category: "Advanced Patterns"
+    prompt: "Find all match expressions in this Rust code: fn test(x: Option<i32>) -> i32 { match x { Some(val) => val, None => 0 } }"
+    expected_tools: ["execute_rule"]
+    success_criteria: "tool_calls > 0 && response.contains('match')"
+    weight: 2.0
+    
+  - name: "TypeScript Interface Analysis"
+    category: "Type Analysis"
+    prompt: "Find all interface declarations in: interface User { name: string; age: number; } interface Admin extends User { permissions: string[]; }"
+    expected_tools: ["execute_rule"]
+    success_criteria: "tool_calls > 0 && response.contains('interface')"
+    weight: 1.5
+
+statistical_config:
+  confidence_level: 0.95
+  min_sample_size: 10
+  max_sample_size: 100
+  significance_threshold: 0.05
+  outlier_detection: true
+
+export_config:
+  formats: ["json", "csv", "html"]
+  output_directory: "benchmark_results"
+  include_raw_data: true
+  include_charts: true
