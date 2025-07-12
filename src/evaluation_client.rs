@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::process::Stdio;
 use tokio::process::{Child, Command};
 use tracing::{debug, error, info};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
 pub struct EvaluationClientConfig {
@@ -343,10 +344,17 @@ impl EvaluationClient {
 
     pub async fn evaluate_prompt(&mut self, prompt: &str) -> Result<EvaluationResult> {
         let start_time = std::time::Instant::now();
+        let initial_history_len = self.conversation_history.len();
         
         let response = self.chat_with_llm(prompt).await?;
         
         let duration = start_time.elapsed();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        
+        let tool_calls = self.extract_tool_calls_from_recent_conversation(initial_history_len);
         
         Ok(EvaluationResult {
             prompt: prompt.to_string(),
@@ -354,7 +362,34 @@ impl EvaluationClient {
             duration_ms: duration.as_millis() as u64,
             tool_calls_made: self.count_tool_calls_in_conversation(),
             success: true,
+            timestamp,
+            model_name: self.config.model_name.clone(),
+            tool_calls,
+            conversation_length: self.conversation_history.len(),
         })
+    }
+
+    fn extract_tool_calls_from_recent_conversation(&self, start_index: usize) -> Vec<ToolCallResult> {
+        let mut tool_calls = Vec::new();
+        
+        for message in self.conversation_history.iter().skip(start_index) {
+            if let Some(calls) = &message.tool_calls {
+                for call in calls {
+                    let args: Value = serde_json::from_str(&call.function.arguments)
+                        .unwrap_or_default();
+                    
+                    tool_calls.push(ToolCallResult {
+                        tool_name: call.function.name.clone(),
+                        arguments: args,
+                        result: "Simulated result".to_string(), // In real implementation, track actual results
+                        success: true,
+                        duration_ms: 0, // Would need to track actual timing
+                    });
+                }
+            }
+        }
+        
+        tool_calls
     }
 
     fn count_tool_calls_in_conversation(&self) -> usize {
@@ -364,15 +399,165 @@ impl EvaluationClient {
             .map(|calls| calls.len())
             .sum()
     }
+
+    pub fn analyze_response(&self, response: &str, result: &EvaluationResult) -> ResponseAnalysis {
+        let contains_tool_calls = result.tool_calls_made > 0;
+        let contains_code = self.detect_code_blocks(response);
+        let contains_error = self.detect_error_patterns(response);
+        let word_count = response.split_whitespace().count();
+        let sentiment = self.analyze_sentiment(response);
+        let success_indicators = self.extract_success_indicators(response);
+        let failure_indicators = self.extract_failure_indicators(response);
+
+        ResponseAnalysis {
+            contains_tool_calls,
+            contains_code,
+            contains_error,
+            word_count,
+            sentiment,
+            success_indicators,
+            failure_indicators,
+        }
+    }
+
+    fn detect_code_blocks(&self, response: &str) -> bool {
+        response.contains("```") || 
+        response.contains("function ") ||
+        response.contains("const ") ||
+        response.contains("let ") ||
+        response.contains("var ") ||
+        response.contains("class ") ||
+        response.contains("impl ") ||
+        response.contains("fn ")
+    }
+
+    fn detect_error_patterns(&self, response: &str) -> bool {
+        let error_patterns = ["error", "failed", "exception", "panic", "undefined", "null reference"];
+        let response_lower = response.to_lowercase();
+        error_patterns.iter().any(|pattern| response_lower.contains(pattern))
+    }
+
+    fn analyze_sentiment(&self, response: &str) -> ResponseSentiment {
+        let response_lower = response.to_lowercase();
+        
+        if response_lower.contains("sorry") || response_lower.contains("confused") || response_lower.contains("unclear") {
+            ResponseSentiment::Confused
+        } else if response_lower.contains("help") || response_lower.contains("assist") || response_lower.contains("guide") {
+            ResponseSentiment::Helpful
+        } else if response_lower.contains("success") || response_lower.contains("complete") || response_lower.contains("done") {
+            ResponseSentiment::Positive
+        } else if response_lower.contains("fail") || response_lower.contains("error") || response_lower.contains("problem") {
+            ResponseSentiment::Negative
+        } else {
+            ResponseSentiment::Neutral
+        }
+    }
+
+    fn extract_success_indicators(&self, response: &str) -> Vec<String> {
+        let mut indicators = Vec::new();
+        let response_lower = response.to_lowercase();
+        
+        let patterns = [
+            "successfully",
+            "completed",
+            "found",
+            "executed",
+            "processed",
+            "analyzed",
+            "generated",
+            "created",
+        ];
+        
+        for pattern in &patterns {
+            if response_lower.contains(pattern) {
+                indicators.push(pattern.to_string());
+            }
+        }
+        
+        indicators
+    }
+
+    fn extract_failure_indicators(&self, response: &str) -> Vec<String> {
+        let mut indicators = Vec::new();
+        let response_lower = response.to_lowercase();
+        
+        let patterns = [
+            "failed",
+            "error",
+            "unable",
+            "cannot",
+            "invalid",
+            "missing",
+            "not found",
+            "timeout",
+        ];
+        
+        for pattern in &patterns {
+            if response_lower.contains(pattern) {
+                indicators.push(pattern.to_string());
+            }
+        }
+        
+        indicators
+    }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EvaluationResult {
     pub prompt: String,
     pub response: String,
     pub duration_ms: u64,
     pub tool_calls_made: usize,
     pub success: bool,
+    pub timestamp: u64,
+    pub model_name: String,
+    pub tool_calls: Vec<ToolCallResult>,
+    pub conversation_length: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolCallResult {
+    pub tool_name: String,
+    pub arguments: Value,
+    pub result: String,
+    pub success: bool,
+    pub duration_ms: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SnapshotMetadata {
+    pub test_name: String,
+    pub model_name: String,
+    pub timestamp: u64,
+    pub git_commit: Option<String>,
+    pub prompt_hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ResponseSnapshot {
+    pub metadata: SnapshotMetadata,
+    pub evaluation_result: EvaluationResult,
+    pub response_analysis: ResponseAnalysis,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ResponseAnalysis {
+    pub contains_tool_calls: bool,
+    pub contains_code: bool,
+    pub contains_error: bool,
+    pub word_count: usize,
+    pub sentiment: ResponseSentiment,
+    pub success_indicators: Vec<String>,
+    pub failure_indicators: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum ResponseSentiment {
+    Positive,
+    Negative,
+    Neutral,
+    Confused,
+    Helpful,
 }
 
 #[derive(Debug)]

@@ -1,0 +1,255 @@
+name: LLM Snapshot Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run nightly to catch model drift
+    - cron: '0 2 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  snapshot-tests:
+    name: Run Snapshot Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        rust-version: [stable]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for git commit info
+        
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust-version }}
+        profile: minimal
+        override: true
+        components: rustfmt, clippy
+        
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Setup test environment
+      run: |
+        mkdir -p tests/snapshots
+        mkdir -p test-outputs
+        
+    - name: Build project
+      run: cargo build --all-targets
+      
+    - name: Run unit tests
+      run: cargo test --lib
+      
+    - name: Run snapshot structure validation
+      run: cargo test test_snapshot_structure_validation -- --exact
+      
+    - name: Run snapshot tests (if LLM available)
+      run: |
+        # Skip actual LLM tests in CI unless endpoint is configured
+        if [ -n "${{ secrets.LLM_ENDPOINT }}" ]; then
+          echo "Running full snapshot tests with LLM"
+          cargo test snapshot --no-fail-fast
+        else
+          echo "Skipping LLM-dependent tests (no endpoint configured)"
+          cargo test test_snapshot_structure_validation
+        fi
+      env:
+        LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
+        LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        
+    - name: Check for snapshot changes
+      run: |
+        if git diff --quiet tests/snapshots/; then
+          echo "✅ No snapshot changes detected"
+        else
+          echo "⚠️ Snapshot changes detected:"
+          git diff tests/snapshots/
+          echo "::warning::Snapshot changes detected. Review carefully!"
+        fi
+        
+    - name: Run regression detection
+      if: github.event_name == 'schedule' || github.event_name == 'push'
+      run: |
+        if [ -n "${{ secrets.LLM_ENDPOINT }}" ]; then
+          echo "Checking for regressions..."
+          cargo run --bin snapshot-manager compare --baseline-days 7 || true
+        else
+          echo "Skipping regression check (no LLM endpoint)"
+        fi
+        
+    - name: Generate snapshot summary
+      run: |
+        cargo run --bin snapshot-manager summary || echo "No snapshots to summarize"
+        
+    - name: Export snapshot data
+      if: always()
+      run: |
+        mkdir -p test-outputs
+        cargo run --bin snapshot-manager export --format json --output test-outputs/snapshots.json || true
+        cargo run --bin snapshot-manager export --format csv --output test-outputs/snapshots.csv || true
+        cargo run --bin snapshot-manager export --format summary --output test-outputs/summary.yaml || true
+        
+    - name: Upload snapshot artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: snapshot-data-${{ github.sha }}
+        path: |
+          tests/snapshots/
+          test-outputs/
+        retention-days: 30
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: test-failures-${{ github.sha }}
+        path: |
+          target/debug/deps/*.log
+          tests/snapshots/*.new
+        retention-days: 7
+        
+    - name: Comment on PR with results
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          let comment = '## 📸 Snapshot Test Results\n\n';
+          
+          try {
+            // Read summary if available
+            const summaryPath = 'test-outputs/summary.yaml';
+            if (fs.existsSync(summaryPath)) {
+              const summary = fs.readFileSync(summaryPath, 'utf8');
+              comment += '### Summary\n```yaml\n' + summary + '\n```\n\n';
+            }
+            
+            // Check for snapshot changes
+            const { execSync } = require('child_process');
+            try {
+              execSync('git diff --quiet tests/snapshots/', { encoding: 'utf8' });
+              comment += '✅ No snapshot changes detected.\n';
+            } catch (e) {
+              comment += '⚠️ **Snapshot changes detected!** Please review carefully.\n\n';
+              try {
+                const diff = execSync('git diff --name-only tests/snapshots/', { encoding: 'utf8' });
+                comment += 'Changed files:\n```\n' + diff + '\n```\n';
+              } catch (diffError) {
+                comment += 'Could not get diff details.\n';
+              }
+            }
+          } catch (error) {
+            comment += '❌ Error generating snapshot report: ' + error.message + '\n';
+          }
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  nightly-regression-check:
+    name: Nightly Regression Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 30  # Need more history for regression analysis
+        
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Cache cargo
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Download historical snapshots
+      uses: actions/download-artifact@v3
+      with:
+        name: snapshot-data-latest
+        path: historical-snapshots/
+      continue-on-error: true
+      
+    - name: Run comprehensive regression analysis
+      if: env.LLM_ENDPOINT != ''
+      run: |
+        echo "Running nightly regression analysis..."
+        cargo run --bin snapshot-manager compare --baseline-days 30
+        cargo run --bin snapshot-manager export --format summary --output nightly-report.yaml
+      env:
+        LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
+        LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        
+    - name: Create regression issue
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const title = `🚨 Nightly Regression Detected - ${new Date().toISOString().split('T')[0]}`;
+          const body = `
+          ## Regression Detection Alert
+          
+          The nightly regression analysis has detected potential issues with LLM response quality.
+          
+          **Date**: ${new Date().toISOString()}
+          **Commit**: ${context.sha}
+          
+          ### Next Steps
+          1. Review the snapshot differences in the artifact
+          2. Investigate potential causes (model changes, prompt modifications, etc.)
+          3. Update baselines if changes are intentional
+          4. Fix regressions if unintentional
+          
+          ### Artifacts
+          Check the workflow run for detailed comparison data.
+          `;
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['regression', 'automated', 'priority-high']
+          });
+          
+    - name: Upload nightly report
+      uses: actions/upload-artifact@v3
+      with:
+        name: nightly-regression-report-${{ github.run_number }}
+        path: |
+          nightly-report.yaml
+          tests/snapshots/
+        retention-days: 90
