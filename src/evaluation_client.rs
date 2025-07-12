@@ -98,10 +98,10 @@ pub struct McpTool {
 
 #[derive(Debug)]
 pub struct EvaluationClient {
-    config: EvaluationClientConfig,
+    pub config: EvaluationClientConfig,
     http_client: Client,
     mcp_process: Option<Child>,
-    conversation_history: Vec<OpenAIMessage>,
+    pub conversation_history: Vec<OpenAIMessage>,
 }
 
 impl EvaluationClient {
