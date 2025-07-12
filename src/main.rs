@@ -152,6 +152,88 @@ impl ServerHandler for AstGrepServer {
                     "required": ["rule_config", "target"]
                 })).unwrap()
             ),
+            Tool::new(
+                "search_examples",
+                "Search ast-grep rule examples with pagination support",
+                serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query for finding relevant examples"
+                        },
+                        "language": {
+                            "type": "string", 
+                            "description": "Programming language filter (e.g., 'javascript', 'python', 'any')",
+                            "default": "any"
+                        },
+                        "limit": {
+                            "type": "number",
+                            "description": "Maximum number of results per page",
+                            "default": 10
+                        },
+                        "offset": {
+                            "type": "number", 
+                            "description": "Number of results to skip for pagination",
+                            "default": 0
+                        }
+                    },
+                    "required": ["query"]
+                })).unwrap()
+            ),
+            Tool::new(
+                "similarity_search",
+                "Find examples similar to provided pattern with pagination support",
+                serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "pattern": {
+                            "type": "string",
+                            "description": "Pattern or example code to find similar examples for"
+                        },
+                        "limit": {
+                            "type": "number",
+                            "description": "Maximum number of results per page", 
+                            "default": 10
+                        },
+                        "offset": {
+                            "type": "number",
+                            "description": "Number of results to skip for pagination",
+                            "default": 0
+                        }
+                    },
+                    "required": ["pattern"]
+                })).unwrap()
+            ),
+            Tool::new(
+                "suggest_examples",
+                "Get example suggestions based on problem description with pagination support",
+                serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "description": {
+                            "type": "string",
+                            "description": "Description of the problem you're trying to solve"
+                        },
+                        "language": {
+                            "type": "string",
+                            "description": "Programming language preference (e.g., 'javascript', 'python', 'any')",
+                            "default": "any"
+                        },
+                        "limit": {
+                            "type": "number",
+                            "description": "Maximum number of results per page",
+                            "default": 5
+                        },
+                        "offset": {
+                            "type": "number",
+                            "description": "Number of results to skip for pagination", 
+                            "default": 0
+                        }
+                    },
+                    "required": ["description"]
+                })).unwrap()
+            ),
         ];
 
         Ok(ListToolsResult::with_all_items(tools))

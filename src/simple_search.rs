@@ -17,6 +17,20 @@ pub struct SearchResult {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaginationInfo {
+    pub offset: usize,
+    pub limit: usize,
+    pub total_count: usize,
+    pub has_more: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaginatedSearchResult {
+    pub results: Vec<SearchResult>,
+    pub pagination: PaginationInfo,
+}
+
+#[derive(Debug, Clone)]
 pub struct CatalogExample {
     pub id: String,
     pub title: String,
@@ -149,12 +163,99 @@ impl SimpleSearchEngine {
         Ok(results)
     }
 
+    /// Search with pagination support
+    pub fn search_paginated(
+        &self,
+        query: &str,
+        language_filter: Option<&str>,
+        limit: usize,
+        offset: usize,
+    ) -> Result<PaginatedSearchResult> {
+        let normalized_query = query.nfc().collect::<String>().to_lowercase();
+        let query_terms: Vec<&str> = normalized_query.split_whitespace().collect();
+
+        if query_terms.is_empty() {
+            return Ok(PaginatedSearchResult {
+                results: Vec::new(),
+                pagination: PaginationInfo {
+                    offset,
+                    limit,
+                    total_count: 0,
+                    has_more: false,
+                },
+            });
+        }
+
+        let mut scored_results = Vec::new();
+
+        for example in &self.examples {
+            // Apply language filter
+            if let Some(lang) = language_filter {
+                if lang != "any" && !example.language.eq_ignore_ascii_case(lang) {
+                    continue;
+                }
+            }
+
+            let score = self.calculate_score(example, &query_terms);
+            if score > 0.0 {
+                scored_results.push((example, score));
+            }
+        }
+
+        // Sort by score (highest first)
+        scored_results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let total_count = scored_results.len();
+        let has_more = offset + limit < total_count;
+
+        // Apply pagination
+        let paginated_results: Vec<SearchResult> = scored_results
+            .into_iter()
+            .skip(offset)
+            .take(limit)
+            .map(|(example, score)| SearchResult {
+                id: example.id.clone(),
+                title: example.title.clone(),
+                description: example.description.clone(),
+                language: example.language.clone(),
+                score,
+                has_fix: example.has_fix,
+                features: example.features.clone(),
+                yaml_content: example.yaml_content.clone(),
+                playground_link: example.playground_link.clone(),
+            })
+            .collect();
+
+        Ok(PaginatedSearchResult {
+            results: paginated_results,
+            pagination: PaginationInfo {
+                offset,
+                limit,
+                total_count,
+                has_more,
+            },
+        })
+    }
+
     /// Simple similarity search based on term overlap
     pub fn similarity_search(&self, example_text: &str, limit: usize) -> Result<Vec<SearchResult>> {
         let terms = extract_key_terms(example_text);
         let query = terms.join(" ");
 
         self.search(&query, None, limit)
+    }
+
+    /// Similarity search with pagination support
+    pub fn similarity_search_paginated(
+        &self,
+        example_text: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<PaginatedSearchResult> {
+        let terms = extract_key_terms(example_text);
+        let query = terms.join(" ");
+
+        self.search_paginated(&query, None, limit, offset)
     }
 
     fn calculate_score(&self, example: &CatalogExample, query_terms: &[&str]) -> f32 {
