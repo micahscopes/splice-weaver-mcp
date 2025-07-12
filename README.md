@@ -1,12 +1,21 @@
 # MCP ast-grep Server
 
-An MCP (Model Context Protocol) server that provides ast-grep functionality to language models.
+An MCP (Model Context Protocol) server that provides ast-grep functionality to language models, with dual support for both direct CLI access and guided workflows for small LLMs.
 
 ## Features
 
-- **ast_grep_search**: Search for AST patterns in code
-- **ast_grep_replace**: Replace AST patterns with new code (supports dry-run mode)
-- **ast_grep_scan**: Scan code for potential issues using custom rules
+### Tools
+- **find_scope**: Universal scope navigation using relational rules
+- **execute_rule**: Rule-based operations (search, replace, scan)
+
+### Resources  
+- Binary path access for direct CLI usage
+- Rule examples and pattern libraries
+- Language-specific node type references
+
+### Prompts
+- Guided scope navigation rule generation
+- Template-based transformation workflows
 
 ## Prerequisites
 
@@ -21,38 +30,18 @@ cargo build --release
 
 ## Usage
 
-The server communicates via JSON-RPC over stdin/stdout:
-
 ```bash
 ./target/release/mcp-ast-grep
 ```
 
-## Tools
+## Design Philosophy
 
-### ast_grep_search
-Search for AST patterns in code.
+This server implements a **dual approach** to ast-grep access:
 
-Parameters:
-- `pattern`: The AST pattern to search for
-- `language`: Programming language (e.g., 'javascript', 'python', 'rust')
-- `path`: Path to search in (file or directory)
+1. **Direct Access**: Full CLI power for experienced users and large LLMs
+2. **Guided Workflows**: Structured templates and examples for small LLMs
 
-### ast_grep_replace
-Replace AST patterns in code.
-
-Parameters:
-- `pattern`: The AST pattern to search for
-- `replacement`: The replacement pattern
-- `language`: Programming language
-- `path`: Path to search in
-- `dry_run`: If true, show what would be changed without applying changes (default: true)
-
-### ast_grep_scan
-Scan code for potential issues using ast-grep rules.
-
-Parameters:
-- `rule`: The ast-grep rule to apply (YAML format)
-- `path`: Path to scan (file or directory)
+For complete ast-grep documentation, visit: https://ast-grep.github.io/
 
 ## License
 

@@ -1,6 +1,8 @@
 # Common AST-Grep Patterns
 
-This document contains comprehensive examples of ast-grep patterns for different programming languages.
+Pattern examples for use with the MCP ast-grep server. For complete documentation: https://ast-grep.github.io/
+
+This document contains examples of ast-grep patterns for different programming languages.
 
 ## JavaScript/TypeScript Patterns
 

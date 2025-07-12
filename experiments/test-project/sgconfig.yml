@@ -1,6 +1,0 @@
-ruleDirs:
-- /var/tmp/vibe-kanban/vk-ee14-explore-as/experiments/test-project/rules
-testConfigs:
-- testDir: /var/tmp/vibe-kanban/vk-ee14-explore-as/experiments/test-project/rule-tests
-utilDirs:
-- /var/tmp/vibe-kanban/vk-ee14-explore-as/experiments/test-project/utils

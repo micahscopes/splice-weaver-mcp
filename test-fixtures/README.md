@@ -1,25 +1,20 @@
-# AST-Grep Test Fixtures
+# MCP AST-Grep Test Fixtures
 
-This directory contains comprehensive test fixtures for exploring ast-grep capabilities across different programming languages.
+Test files for validating MCP server functionality across multiple programming languages.
 
 ## Structure
 
-- `javascript/` - JavaScript test files
-- `typescript/` - TypeScript test files  
+- `javascript/` - JS test files
+- `typescript/` - TS test files  
 - `rust/` - Rust test files
 - `python/` - Python test files
-- `go/` - Go test files
-- `java/` - Java test files
-- `patterns/` - Common patterns and rules
-- `examples/` - Example searches and transformations
+- `patterns/` - Common ast-grep patterns
 
 ## Usage
 
-These fixtures are designed to test various ast-grep patterns including:
-- Function declarations
-- Variable assignments
-- Control flow
-- Object/class patterns
-- Error handling
-- Import/export statements
-- Comments and documentation
+Use these fixtures to test:
+- MCP tool functionality (find_scope, execute_rule)
+- Pattern library resources
+- Template-based rule generation
+
+For ast-grep pattern documentation: https://ast-grep.github.io/

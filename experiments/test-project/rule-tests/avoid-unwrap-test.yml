@@ -1,7 +1,0 @@
-id: avoid-unwrap
-valid:
-- "let x = option.unwrap_or(0);"
-- "let y = result.expect(\"should work\");"
-invalid:
-- "let z = option.unwrap();"
-- "value.unwrap()"
