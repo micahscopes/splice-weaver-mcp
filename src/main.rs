@@ -1,10 +1,13 @@
 use anyhow::Result;
-use serde_json::Value;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use rmcp::{
+    ServerHandler,
+    model::*,
+    service::*,
+};
+use std::sync::Arc;
 use tracing::{info, error};
 
 mod ast_grep_tools;
-
 use ast_grep_tools::AstGrepTools;
 
 #[tokio::main]
@@ -13,121 +16,136 @@ async fn main() -> Result<()> {
     
     info!("Starting MCP ast-grep server");
     
-    let tools = AstGrepTools::new();
-    let mut server = McpServer::new(tools);
+    let handler = AstGrepServer::new();
+    let transport = rmcp::transport::io::stdio();
     
-    server.run().await
+    // Run the service with stdio transport
+    let server = rmcp::service::serve_server(handler, transport).await?;
+    server.waiting().await?;
+    
+    Ok(())
 }
 
-struct McpServer {
-    tools: AstGrepTools,
+#[derive(Clone)]
+pub struct AstGrepServer {
+    tools: Arc<AstGrepTools>,
 }
 
-impl McpServer {
-    fn new(tools: AstGrepTools) -> Self {
+impl AstGrepServer {
+    pub fn new() -> Self {
+        let tools = Arc::new(AstGrepTools::new());
         Self { tools }
     }
-    
-    async fn run(&mut self) -> Result<()> {
-        let stdin = tokio::io::stdin();
-        let mut stdout = tokio::io::stdout();
-        let mut reader = BufReader::new(stdin);
-        let mut line = String::new();
-        
-        loop {
-            line.clear();
-            match reader.read_line(&mut line).await {
-                Ok(0) => break,
-                Ok(_) => {
-                    if let Ok(request) = serde_json::from_str::<Value>(&line) {
-                        let response = self.handle_request(request).await;
-                        let response_str = serde_json::to_string(&response)?;
-                        stdout.write_all(response_str.as_bytes()).await?;
-                        stdout.write_all(b"\n").await?;
-                        stdout.flush().await?;
-                    }
-                }
-                Err(e) => {
-                    error!("Error reading from stdin: {}", e);
-                    break;
-                }
-            }
+}
+
+impl ServerHandler for AstGrepServer {
+    fn get_info(&self) -> InitializeResult {
+        InitializeResult {
+            protocol_version: ProtocolVersion::V_2024_11_05,
+            capabilities: ServerCapabilities::builder()
+                .enable_tools()
+                .build(),
+            server_info: Implementation {
+                name: "mcp-ast-grep".to_string(),
+                version: "0.1.0".to_string(),
+            },
+            instructions: None,
         }
-        
-        Ok(())
     }
-    
-    async fn handle_request(&mut self, request: Value) -> Value {
-        let method = request["method"].as_str().unwrap_or("");
-        let params = &request["params"];
-        let id = request["id"].clone();
-        
-        match method {
-            "initialize" => {
-                serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": id,
-                    "result": {
-                        "protocolVersion": "2024-11-05",
-                        "capabilities": {
-                            "tools": {}
+
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParam>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListToolsResult, rmcp::Error> {
+        let tools = vec![
+            Tool::new(
+                "ast_grep_search",
+                "Search for AST patterns in code using ast-grep",
+                serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "pattern": {
+                            "type": "string",
+                            "description": "The AST pattern to search for"
                         },
-                        "serverInfo": {
-                            "name": "mcp-ast-grep",
-                            "version": "0.1.0"
+                        "language": {
+                            "type": "string",
+                            "description": "Programming language (e.g., 'javascript', 'python', 'rust')"
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": "Path to search in (file or directory)"
                         }
-                    }
-                })
-            }
-            "tools/list" => {
-                serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": id,
-                    "result": {
-                        "tools": self.tools.list_tools()
-                    }
-                })
-            }
-            "tools/call" => {
-                let tool_name = params["name"].as_str().unwrap_or("");
-                let arguments = params["arguments"].clone();
-                
-                match self.tools.call_tool(tool_name, arguments).await {
-                    Ok(result) => {
-                        serde_json::json!({
-                            "jsonrpc": "2.0",
-                            "id": id,
-                            "result": {
-                                "content": [
-                                    {
-                                        "type": "text",
-                                        "text": result
-                                    }
-                                ]
-                            }
-                        })
-                    }
-                    Err(e) => {
-                        serde_json::json!({
-                            "jsonrpc": "2.0",
-                            "id": id,
-                            "error": {
-                                "code": -32603,
-                                "message": format!("Tool execution failed: {}", e)
-                            }
-                        })
-                    }
-                }
-            }
-            _ => {
-                serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": id,
-                    "error": {
-                        "code": -32601,
-                        "message": "Method not found"
-                    }
-                })
+                    },
+                    "required": ["pattern", "language", "path"]
+                })).unwrap()
+            ),
+            Tool::new(
+                "ast_grep_replace",
+                "Replace AST patterns in code using ast-grep",
+                serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "pattern": {
+                            "type": "string",
+                            "description": "The AST pattern to search for"
+                        },
+                        "replacement": {
+                            "type": "string",
+                            "description": "The replacement pattern"
+                        },
+                        "language": {
+                            "type": "string",
+                            "description": "Programming language (e.g., 'javascript', 'python', 'rust')"
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": "Path to search in (file or directory)"
+                        },
+                        "dry_run": {
+                            "type": "boolean",
+                            "description": "If true, show what would be changed without applying changes",
+                            "default": true
+                        }
+                    },
+                    "required": ["pattern", "replacement", "language", "path"]
+                })).unwrap()
+            ),
+            Tool::new(
+                "ast_grep_scan",
+                "Scan code for potential issues using ast-grep rules",
+                serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "rule": {
+                            "type": "string",
+                            "description": "The ast-grep rule to apply (YAML format)"
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": "Path to scan (file or directory)"
+                        }
+                    },
+                    "required": ["rule", "path"]
+                })).unwrap()
+            ),
+        ];
+        
+        Ok(ListToolsResult::with_all_items(tools))
+    }
+
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParam,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let args = request.arguments.map(|args| serde_json::Value::Object(args)).unwrap_or(serde_json::Value::Null);
+        match self.tools.call_tool(&request.name, args).await {
+            Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
+            Err(e) => {
+                error!("Tool execution failed: {}", e);
+                Err(rmcp::Error::invalid_params(format!("Tool execution failed: {}", e), None))
             }
         }
     }
