@@ -6,40 +6,16 @@ expression: results
 - metadata:
     test_name: Consistency check_run_0
     model_name: test-model
-    timestamp: 1752363980
-    git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+    timestamp: 1752364731
+    git_commit: e749611dd10c10c9cdb3fd8bec0e680e64b2b580
     prompt_hash: 1326b7a471a2095b
   evaluation_result:
     prompt: "Count the number of functions in this code: function a() {} function b() {} function c() {}"
-    response: There are 3 functions in the provided code.
-    duration_ms: 10552
+    response: "To count the number of functions in your code, I'll use an approach that looks for function definitions. Here's the code you provided:\n\n```javascript\nfunction a() {}\nfunction b() {}\nfunction c() {}\n```\n\nLet me analyze it to determine how many functions are defined.[TOOL_CALLS]execute_rule[ARGS]{\"dry_run\": true, \"operation\": \"search\", \"rule_config\": \"functions:\\n  - name: \\\"function_definitions\\\"\\n    pattern: \\\"function $name(\\\\w+) *\\\\({\\\\s*\\\\}\\\\)\\\"\\n    language: javascript\\n    scope: file\", \"target\": \".\"}"
+    duration_ms: 2050
     tool_calls_made: 0
     success: true
-    timestamp: 1752363980
-    model_name: test-model
-    tool_calls: []
-    conversation_length: 2
-  response_analysis:
-    contains_tool_calls: false
-    contains_code: false
-    contains_error: false
-    word_count: 8
-    sentiment: Neutral
-    success_indicators: []
-    failure_indicators: []
-- metadata:
-    test_name: Consistency check_run_1
-    model_name: test-model
-    timestamp: 1752363984
-    git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
-    prompt_hash: 1326b7a471a2095b
-  evaluation_result:
-    prompt: "Count the number of functions in this code: function a() {} function b() {} function c() {}"
-    response: "Let me count the number of functions in the provided code.[TOOL_CALLS]execute_rule[ARGS]{\"rule_config\": \"(\\n  functions:\\n    pattern: \\\"function $name() {}\\\"\\n    metrics:\\n      - count\\n)\", \"target\": \"a.js\"}"
-    duration_ms: 3899
-    tool_calls_made: 0
-    success: true
-    timestamp: 1752363984
+    timestamp: 1752364731
     model_name: test-model
     tool_calls: []
     conversation_length: 2
@@ -47,31 +23,56 @@ expression: results
     contains_tool_calls: false
     contains_code: true
     contains_error: false
-    word_count: 22
+    word_count: 63
+    sentiment: Neutral
+    success_indicators: []
+    failure_indicators: []
+- metadata:
+    test_name: Consistency check_run_1
+    model_name: test-model
+    timestamp: 1752364733
+    git_commit: e749611dd10c10c9cdb3fd8bec0e680e64b2b580
+    prompt_hash: 1326b7a471a2095b
+  evaluation_result:
+    prompt: "Count the number of functions in this code: function a() {} function b() {} function c() {}"
+    response: "The code contains 3 functions.\n\nLet me analyze it:\n- `function a() {}` - This is one function\n- `function b() {}` - This is another function\n- `function c() {}` - This is the third function\n\nSo there are a total of 3 functions.[TOOL_CALLS]execute_rule[ARGS]{\"operation\": \"search\", \"rule_config\": \"# Count functions in JavaScript\\nlanguage: javascript\\ntypes:\\n- function: {}\", \"target\": \"function a() {} function b() {} function c() {}\"}"
+    duration_ms: 1817
+    tool_calls_made: 0
+    success: true
+    timestamp: 1752364733
+    model_name: test-model
+    tool_calls: []
+    conversation_length: 2
+  response_analysis:
+    contains_tool_calls: false
+    contains_code: true
+    contains_error: false
+    word_count: 65
     sentiment: Neutral
     success_indicators: []
     failure_indicators: []
 - metadata:
     test_name: Consistency check_run_2
     model_name: test-model
-    timestamp: 1752363986
-    git_commit: ce26a58b8ae7dd913e40755398760d32c914379f
+    timestamp: 1752364734
+    git_commit: e749611dd10c10c9cdb3fd8bec0e680e64b2b580
     prompt_hash: 1326b7a471a2095b
   evaluation_result:
     prompt: "Count the number of functions in this code: function a() {} function b() {} function c() {}"
-    response: The code contains 3 functions.
-    duration_ms: 2152
+    response: "To count the number of functions in your code, I'll use an AST (Abstract Syntax Tree) tool to analyze the code structure. Let me set up the analysis:[TOOL_CALLS]execute_rule[ARGS]{\"dry_run\": true, \"operation\": \"scan\", \"rule_config\": \"functions:\\n  - name: function_count\\n    pattern: \\\"function $name() {}\\\"\\n    message: \\\"Found function: {{.name}}\\\"\", \"target\": \"function a() {} function b() {} function c() {}\"}"
+    duration_ms: 1741
     tool_calls_made: 0
     success: true
-    timestamp: 1752363986
+    timestamp: 1752364734
     model_name: test-model
     tool_calls: []
     conversation_length: 2
   response_analysis:
     contains_tool_calls: false
-    contains_code: false
+    contains_code: true
     contains_error: false
-    word_count: 5
+    word_count: 54
     sentiment: Neutral
-    success_indicators: []
+    success_indicators:
+      - found
     failure_indicators: []
